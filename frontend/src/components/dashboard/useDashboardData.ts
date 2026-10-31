@@ -1,55 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getAgentAssignments, getErrorMessage } from '@/lib/api'
 import { agentRows, withHeartbeat, type AgentRow } from '@/lib/agentRows'
 import type { CommandOutcome } from '@/lib/discovery'
 import { useLive, useLiveEvent } from '@/lib/live'
 import type { LiveEvent } from '@/lib/liveEvents'
+import { useLoadable, type Loadable } from '@/lib/loadable'
 import { buildTopologyTree, type TopologyBranch } from '@/lib/topology'
+import { useLiveRefetch } from '@/lib/useLiveRefetch'
 import type { Agent, AgentAssignment, Device, ScanReport, Subnet, Topology } from '@/types'
 
-const LIVE_REFRESH_DELAY_MS = 150
 const OUTCOMES_LIMIT = 50
-
-export type Loadable<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; message: string }
 
 export interface NetworkData {
   branches: TopologyBranch[]
   offline: Device[]
-}
-
-function useLiveRefetch(matches: (event: LiveEvent) => boolean, refetch: () => void) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useLiveEvent((event) => {
-    if (timer.current || !matches(event)) return
-    timer.current = setTimeout(() => {
-      timer.current = null
-      refetch()
-    }, LIVE_REFRESH_DELAY_MS)
-  })
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current)
-    },
-    [],
-  )
-}
-
-function useLoadable<T>(fetcher: () => Promise<T>, failure: string) {
-  const [state, setState] = useState<Loadable<T>>({ status: 'loading' })
-
-  const refetch = useCallback(() => {
-    fetcher()
-      .then((data) => setState({ status: 'ready', data }))
-      .catch((error: unknown) => setState((current) => (current.status === 'ready' ? current : { status: 'error', message: getErrorMessage(error, failure) })))
-  }, [fetcher, failure])
-
-  useEffect(() => {
-    refetch()
-  }, [refetch])
-
-  return { state, refetch }
 }
 
 async function fetchNetwork(): Promise<NetworkData> {
