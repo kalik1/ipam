@@ -117,7 +117,7 @@ Body: `{ "name"?: string, "startIp"?: string, "endIp"?: string }` (i campi forni
 - 200: `Device[]` (include `subnet?: Subnet`)
 
 ### POST /devices
-Body: `{ "ip": string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number | null, "notes"?: string }`
+Body: `{ "ip": string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number, "notes"?: string }`
 - 201: `Device`
 - 400: IP non valido, o `subnetId` inesistente
 - 409: IP già esistente
