@@ -38,7 +38,7 @@ describe('ScanService', () => {
   };
   let subnetRepo: { find: jest.Mock };
   let apiKeyRepo: { findOne: jest.Mock; save: jest.Mock };
-  let reportRepo: { create: jest.Mock; save: jest.Mock };
+  let reportRepo: { create: jest.Mock; save: jest.Mock; find?: jest.Mock };
   let events: LiveEvent[];
 
   const validKey = 'ipam-0123456789abcdef0123456789abcdef';

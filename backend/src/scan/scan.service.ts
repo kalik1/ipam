@@ -12,7 +12,11 @@ import { Subnet } from '../entities/subnet.entity';
 import { ApiKey } from '../entities/api-key.entity';
 import { ScanReport } from '../entities/scan-report.entity';
 import { EventsService } from '../events/events.service';
-import { LiveEventData, ScanReportSubnet } from '../events/live-event';
+import {
+  LiveEventData,
+  ScanReportSubnet,
+  deviceCreatedEvent,
+} from '../events/live-event';
 import { ScanDeviceDto, ScanReportDto } from './scan.dto';
 
 export interface ScanResult {
@@ -22,7 +26,7 @@ export interface ScanResult {
   reportId: number;
 }
 
-export interface TouchedDevice {
+export interface SeenDevice {
   id: number;
   ip: string;
   subnetId: number | null;
@@ -32,7 +36,7 @@ export interface TouchedDevice {
 export interface UpsertResult {
   created: number;
   updated: number;
-  devices: TouchedDevice[];
+  devices: SeenDevice[];
 }
 
 export interface ReportFilter {
@@ -127,7 +131,7 @@ export class ScanService {
     const now = new Date();
     let created = 0;
     let updated = 0;
-    const touched = new Map<number, TouchedDevice>();
+    const seen = new Map<number, SeenDevice>();
     for (const entry of devices) {
       if (!isValidIp(entry.ip)) {
         throw new BadRequestException(`Invalid IP address: ${entry.ip}`);
@@ -140,8 +144,8 @@ export class ScanService {
         existing.status = 'online';
         existing.lastSeen = now;
         const saved = await this.deviceRepo.save(existing);
-        if (!touched.has(saved.id)) {
-          touched.set(saved.id, this.touchedDevice(saved, false));
+        if (!seen.has(saved.id)) {
+          seen.set(saved.id, this.seenDevice(saved, false));
         }
         updated += 1;
       } else {
@@ -156,11 +160,11 @@ export class ScanService {
           notes: '',
         });
         const saved = await this.deviceRepo.save(device);
-        touched.set(saved.id, this.touchedDevice(saved, true));
+        seen.set(saved.id, this.seenDevice(saved, true));
         created += 1;
       }
     }
-    return { created, updated, devices: [...touched.values()] };
+    return { created, updated, devices: [...seen.values()] };
   }
 
   async listReports(
@@ -187,21 +191,17 @@ export class ScanService {
       .slice(0, clamped);
   }
 
-  private touchedDevice(device: Device, created: boolean): TouchedDevice {
+  private seenDevice(device: Device, created: boolean): SeenDevice {
     return { id: device.id, ip: device.ip, subnetId: device.subnetId, created };
   }
 
   private publishScan(
     origin: ScanOrigin,
-    devices: TouchedDevice[],
+    devices: SeenDevice[],
     subnets: ScanReportSubnet[],
   ): void {
     for (const device of devices) {
-      if (!device.created) continue;
-      this.events.publish({
-        type: 'device.created',
-        data: { deviceId: device.id, ip: device.ip, subnetId: device.subnetId },
-      });
+      if (device.created) this.events.publish(deviceCreatedEvent(device));
     }
     this.events.publish({
       type: 'scan.report',
@@ -219,7 +219,7 @@ export class ScanService {
   }
 }
 
-function groupBySubnet(devices: TouchedDevice[]): ScanReportSubnet[] {
+function groupBySubnet(devices: SeenDevice[]): ScanReportSubnet[] {
   const groups = new Map<number | null, number[]>();
   for (const device of devices) {
     const ids = groups.get(device.subnetId) ?? [];
