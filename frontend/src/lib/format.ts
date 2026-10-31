@@ -31,6 +31,12 @@ export function formatTimestamp(iso: string): string {
   return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+export function formatClock(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '--:--:--'
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 export type UtilizationLevel = 'ok' | 'warn' | 'danger'
 
 export function utilizationColor(percent: number): UtilizationLevel {

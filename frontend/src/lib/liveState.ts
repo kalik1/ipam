@@ -1,5 +1,5 @@
 import { cx } from './cx'
-import type { LiveEvent } from './liveEvents'
+import type { LiveEvent, LiveEventData } from './liveEvents'
 
 export type LinkStatus = 'connecting' | 'open' | 'down'
 
@@ -10,11 +10,26 @@ export interface LiveAgent {
   heartbeats: number
 }
 
+export interface Pulse {
+  count: number
+  seq: number
+}
+
+export type Pulses = Record<number, Pulse>
+
+export type ScanReportData = LiveEventData['scan.report']
+
 export interface LiveState {
   link: LinkStatus
   received: number
+  settled: number
   agents: LiveAgent[]
   agentsLoaded: boolean
+  sweeps: Pulses
+  flashes: Pulses
+  plugs: Pulses
+  fades: Pulses
+  scans: ScanReportData[]
 }
 
 export interface AgentSnapshot {
@@ -26,8 +41,23 @@ export type LiveAction =
   | { kind: 'link'; status: 'open' | 'down' }
   | { kind: 'event'; event: LiveEvent }
   | { kind: 'agents'; agents: AgentSnapshot[] }
+  | { kind: 'settle'; seq: number }
 
-export const INITIAL_LIVE_STATE: LiveState = { link: 'connecting', received: 0, agents: [], agentsLoaded: false }
+export const RECENT_SCANS_LIMIT = 50
+export const PULSE_MS = 3000
+
+export const INITIAL_LIVE_STATE: LiveState = {
+  link: 'connecting',
+  received: 0,
+  settled: 0,
+  agents: [],
+  agentsLoaded: false,
+  sweeps: {},
+  flashes: {},
+  plugs: {},
+  fades: {},
+  scans: [],
+}
 
 type AgentUpdate = (agent: LiveAgent) => LiveAgent
 
@@ -45,6 +75,23 @@ function updateAgent(agents: LiveAgent[], name: string, update: AgentUpdate): Li
   return agents.map((agent) => (agent.name === name ? update(agent) : agent))
 }
 
+function pulse(pulses: Pulses, keys: number[], seq: number): Pulses {
+  const next = { ...pulses }
+  for (const key of new Set(keys)) next[key] = { count: (pulses[key]?.count ?? 0) + 1, seq }
+  return next
+}
+
+function applyScan(state: LiveState, scan: ScanReportData): LiveState {
+  const subnetIds = scan.subnets.flatMap((group) => (group.subnetId === null ? [] : [group.subnetId]))
+  const deviceIds = scan.subnets.flatMap((group) => group.deviceIds)
+  return {
+    ...state,
+    sweeps: pulse(state.sweeps, subnetIds, state.received),
+    flashes: pulse(state.flashes, deviceIds, state.received),
+    scans: [scan, ...state.scans].slice(0, RECENT_SCANS_LIMIT),
+  }
+}
+
 function applyEvent(state: LiveState, event: LiveEvent): LiveState {
   switch (event.type) {
     case 'agent.connected': {
@@ -59,8 +106,11 @@ function applyEvent(state: LiveState, event: LiveEvent): LiveState {
     case 'agent.disconnected':
       return { ...state, agents: updateAgent(state.agents, event.data.agent, (a) => ({ ...a, connected: false })) }
     case 'scan.report':
+      return applyScan(state, event.data)
     case 'device.created':
+      return { ...state, plugs: pulse(state.plugs, [event.data.deviceId], state.received) }
     case 'device.offline':
+      return { ...state, fades: pulse(state.fades, event.data.deviceIds, state.received) }
     case 'command.sent':
     case 'command.result':
       return state
@@ -85,14 +135,31 @@ export function liveReducer(state: LiveState, action: LiveAction): LiveState {
       return { ...state, link: action.status }
     case 'agents':
       return applySnapshot(state, action.agents)
+    case 'settle':
+      return action.seq > state.settled ? { ...state, settled: action.seq } : state
     case 'event':
       return applyEvent({ ...state, received: state.received + 1 }, action.event)
   }
 }
 
-export function blinkClass(count: number, name: 'ev' | 'hb'): string | undefined {
+export function blinkClass(count: number, name: string): string | undefined {
   if (count === 0) return undefined
   return `${name}-${count % 2 === 1 ? 'a' : 'b'}`
+}
+
+export function pulseClass(pulse: Pulse | undefined, settled: number, name: string): string | undefined {
+  if (!pulse || pulse.seq <= settled) return undefined
+  return blinkClass(pulse.count, name)
+}
+
+export function devicePulseClass(state: LiveState, deviceId: number): string | undefined {
+  const { flashes, plugs, fades, settled } = state
+  const value = cx(
+    pulseClass(flashes[deviceId], settled, 'seen'),
+    pulseClass(plugs[deviceId], settled, 'new'),
+    pulseClass(fades[deviceId], settled, 'fade'),
+  )
+  return value || undefined
 }
 
 const LINK_LED: Record<LinkStatus, string | undefined> = { connecting: undefined, open: 'on', down: 'err' }

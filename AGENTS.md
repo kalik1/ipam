@@ -75,9 +75,9 @@ Run build and tests in every subproject you touch. All must pass before you are 
 
 ## Conventions
 
-- The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP).
+- The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP). Every scan ingestion path (HTTP report, WebSocket report, connector result) goes through `ScanService`, which publishes `device.created` for new devices and one `scan.report` per scan; do not upsert devices around it.
 - Live events: `GET /api/v1/events` is a server-sent events stream for the web UI (JWT in the `Authorization` header, never in the URL; `: keepalive` comments every 15s, no replay). Backend services publish through the global `EventsService.publish({ type, data })` in `backend/src/events/`; the event union is `backend/src/events/live-event.ts`, mirrored in `frontend/src/lib/liveEvents.ts`. The frontend opens one stream in `LiveProvider` (`frontend/src/lib/live.tsx`): animation state comes from the pure `liveReducer` (`frontend/src/lib/liveState.ts`) through `useLive()`, raw events through `useLiveEvent(listener)`.
-- Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s).
+- Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s), which publishes one `device.offline` with the devices it changed.
 - `API.md` and this file must stay in sync when routes or behaviors change.
 - Git repo: https://github.com/kalik1/ipam (branch `main`). Commit or push only when asked.
 

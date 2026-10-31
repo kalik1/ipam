@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Device } from '../entities/device.entity';
 import { DhcpPool } from '../entities/dhcp-pool.entity';
+import { EventsService } from '../events/events.service';
+import { LiveEvent } from '../events/live-event';
 import { Gateway } from '../entities/gateway.entity';
 import { Subnet } from '../entities/subnet.entity';
 import { Vlan } from '../entities/vlan.entity';
@@ -39,6 +41,7 @@ describe('NetworkImportService', () => {
     create: jest.Mock;
   };
   let poolRepo: { find: jest.Mock; save: jest.Mock; create: jest.Mock };
+  let events: LiveEvent[];
 
   beforeEach(async () => {
     vlanRepo = {
@@ -77,10 +80,16 @@ describe('NetworkImportService', () => {
         { provide: getRepositoryToken(Gateway), useValue: gatewayRepo },
         { provide: getRepositoryToken(Device), useValue: deviceRepo },
         { provide: getRepositoryToken(DhcpPool), useValue: poolRepo },
+        EventsService,
       ],
     }).compile();
 
     service = moduleRef.get(NetworkImportService);
+    events = [];
+    moduleRef
+      .get(EventsService)
+      .stream()
+      .subscribe((event) => events.push(event));
   });
 
   it('creates missing vlans and skips existing ones', async () => {
@@ -301,6 +310,37 @@ describe('NetworkImportService', () => {
         status: 'offline',
       }),
     );
+  });
+
+  it('emits device.created only for the reserved ips it creates', async () => {
+    const subnet = { id: 7, cidr: '192.168.220.0/24' } as Subnet;
+    subnetRepo.find.mockResolvedValue([subnet]);
+    deviceRepo.findOne.mockImplementation(
+      async ({ where }: { where: { ip: string } }) =>
+        where.ip === '192.168.220.5'
+          ? makeDevice({ id: 55, ip: '192.168.220.5', subnetId: 7 })
+          : null,
+    );
+    deviceRepo.save.mockImplementation(async (device: Device) => ({
+      ...device,
+      id: device.id ?? 300,
+    }));
+
+    await service.importNetwork(
+      [],
+      [],
+      [
+        { ip: '192.168.220.5', hostname: 'known' },
+        { ip: '192.168.220.100' },
+      ],
+    );
+
+    expect(events).toEqual([
+      {
+        type: 'device.created',
+        data: { deviceId: 300, ip: '192.168.220.100', subnetId: 7 },
+      },
+    ]);
   });
 
   it('fills mac and hostname on an existing device without touching its status', async () => {

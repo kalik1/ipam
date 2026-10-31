@@ -1,0 +1,293 @@
+@layer components {
+  .sweep {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -180px;
+    z-index: 3;
+    width: 180px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--accent) 8%, transparent) 60%,
+      color-mix(in oklab, var(--accent) 30%, transparent) 97%,
+      #D8FEFF 99.4%,
+      transparent
+    );
+    mix-blend-mode: screen;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sweep.pass-a {
+    animation: scan-pass-a 1.6s linear 1;
+  }
+  .sweep.pass-b {
+    animation: scan-pass-b 1.6s linear 1;
+  }
+
+  .mappanel::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1px;
+    z-index: 5;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #C9FDFF 50%, transparent) no-repeat;
+    background-size: 22% 100%;
+    opacity: 0;
+    filter: drop-shadow(0 0 4px var(--accent));
+    pointer-events: none;
+  }
+  .mappanel.rx-a::before {
+    opacity: 1;
+    animation: fiber-pulse-a 1.3s linear 1 both;
+  }
+  .mappanel.rx-b::before {
+    opacity: 1;
+    animation: fiber-pulse-b 1.3s linear 1 both;
+  }
+
+  .port.on.seen-a .led {
+    animation: led-seen-a 0.55s ease-out calc(0.33s + var(--col, 0) * 0.079375s) 1;
+  }
+  .port.on.seen-b .led {
+    animation: led-seen-b 0.55s ease-out calc(0.33s + var(--col, 0) * 0.079375s) 1;
+  }
+
+  .port.k-occ.new-a .plug {
+    animation: plug-in-a 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .port.k-occ.new-b .plug {
+    animation: plug-in-b 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .port.on.new-a .led {
+    animation: led-boot 0.6s ease-out 0.45s both;
+  }
+  .port.on.new-b .led {
+    animation: led-boot 0.6s ease-out 0.45s both;
+  }
+
+  .port.off.fade-a .led {
+    animation: led-fade-a 1.2s ease-in both;
+  }
+  .port.off.fade-b .led {
+    animation: led-fade-b 1.2s ease-in both;
+  }
+  .port.off.fade-a .plug {
+    animation: plug-dim-a 1.2s ease-in both;
+  }
+  .port.off.fade-b .plug {
+    animation: plug-dim-b 1.2s ease-in both;
+  }
+
+  .subnet-page .feed {
+    display: flex;
+    flex: 1 1 340px;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .subnet-page .feed .r {
+    margin-left: auto;
+    color: var(--text-3);
+    font-size: 12px;
+  }
+  .subnet-page .feed-empty {
+    margin: 0;
+    padding: 14px 16px;
+    color: var(--text-3);
+  }
+  .subnet-page .feedlist {
+    max-height: 540px;
+    margin: 0;
+    padding: 6px 0;
+    overflow: auto;
+    list-style: none;
+  }
+  .subnet-page .feedlist li + li {
+    border-top: 1px solid var(--line-soft);
+  }
+  .subnet-page .ev {
+    display: grid;
+    grid-template-columns: 62px 62px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 16px;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+  }
+  .subnet-page button.ev {
+    cursor: pointer;
+  }
+  .subnet-page button.ev:hover {
+    background: var(--line-soft);
+  }
+  .subnet-page .ev .t {
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-stretch: 75%;
+  }
+  .subnet-page .ev .kind {
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .subnet-page .ev.scan .kind {
+    color: var(--led);
+  }
+  .subnet-page .ev.new .kind {
+    color: var(--accent);
+  }
+  .subnet-page .ev.offline .kind {
+    color: var(--text-2);
+  }
+  .subnet-page .ev .txt {
+    min-width: 0;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .subnet-page .ev .txt b {
+    color: var(--text);
+    font-weight: 600;
+  }
+}
+
+@keyframes scan-pass-a {
+  0% {
+    left: -180px;
+    opacity: 1;
+  }
+  99% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+@keyframes scan-pass-b {
+  0% {
+    left: -180px;
+    opacity: 1;
+  }
+  99% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes fiber-pulse-a {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+@keyframes fiber-pulse-b {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+
+@keyframes led-seen-a {
+  0% {
+    background: var(--led);
+  }
+  30% {
+    background: #F4FFF8;
+    box-shadow: 0 0 12px 4px var(--led-glow);
+  }
+  100% {
+  }
+}
+@keyframes led-seen-b {
+  0% {
+    background: var(--led);
+  }
+  30% {
+    background: #F4FFF8;
+    box-shadow: 0 0 12px 4px var(--led-glow);
+  }
+  100% {
+  }
+}
+
+@keyframes plug-in-a {
+  0% {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes plug-in-b {
+  0% {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes led-fade-a {
+  0% {
+    background: var(--led);
+    box-shadow: 0 0 5px 1px var(--led-glow), 0 0 14px 4px color-mix(in oklab, var(--led) 20%, transparent);
+  }
+  100% {
+    background: var(--led-off);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
+}
+@keyframes led-fade-b {
+  0% {
+    background: var(--led);
+    box-shadow: 0 0 5px 1px var(--led-glow), 0 0 14px 4px color-mix(in oklab, var(--led) 20%, transparent);
+  }
+  100% {
+    background: var(--led-off);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@keyframes plug-dim-a {
+  0% {
+    filter: none;
+  }
+  100% {
+    filter: saturate(0.3) brightness(0.62);
+  }
+}
+@keyframes plug-dim-b {
+  0% {
+    filter: none;
+  }
+  100% {
+    filter: saturate(0.3) brightness(0.62);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep {
+    display: none;
+  }
+  .mappanel.rx-a::before,
+  .mappanel.rx-b::before {
+    opacity: 0;
+  }
+}

@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import api, { createDhcpPool, deleteDhcpPool, getErrorMessage, type DhcpPoolBody } from '@/lib/api'
 import { buildAddressMap, type AddressSlot } from '@/lib/addressMap'
+import { useLive, useLiveEvent } from '@/lib/live'
+import { devicePulseClass, pulseClass } from '@/lib/liveState'
+import { affectsSubnet, subnetActivity } from '@/lib/subnetLive'
 import { selectedAddress, type DeviceFilter } from '@/lib/subnetDevices'
 import { vlanColor } from '@/lib/vlan'
 import type { Device, DhcpPool, SubnetDetail } from '@/types'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ActivityPanel } from '@/components/subnet/ActivityPanel'
 import { EmptyState } from '@/components/EmptyState'
 import { AddressMapPanel } from '@/components/subnet/AddressMapPanel'
 import { DeviceEditModal, type DeviceEditBody } from '@/components/subnet/DeviceEditModal'
@@ -17,6 +21,7 @@ import { SubnetHeader } from '@/components/subnet/SubnetHeader'
 
 const NEXT_FREE_LIMIT = 12
 const LED_BOOT_MS = 600 + 256 * 5 + 100
+const LIVE_REFRESH_DELAY_MS = 150
 
 type LoadState = { status: 'loading' } | { status: 'ready'; subnet: SubnetDetail } | { status: 'not-found' } | { status: 'error'; message: string }
 
@@ -63,6 +68,27 @@ function useSubnet(id: string | undefined) {
   return { state, booting, update, refresh }
 }
 
+function useLiveRefresh(subnet: SubnetDetail, refresh: () => Promise<void>) {
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useLiveEvent((event) => {
+    if (pending.current) return
+    const deviceIds = subnet.devices.map((device) => device.id)
+    if (!affectsSubnet(event, subnet.id, deviceIds)) return
+    pending.current = setTimeout(() => {
+      pending.current = null
+      refresh().catch(() => undefined)
+    }, LIVE_REFRESH_DELAY_MS)
+  })
+
+  useEffect(
+    () => () => {
+      if (pending.current) clearTimeout(pending.current)
+    },
+    [],
+  )
+}
+
 export default function SubnetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { state, booting, update, refresh } = useSubnet(id)
@@ -89,6 +115,8 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const [toDelete, setToDelete] = useState<Device | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const live = useLive()
+  useLiveRefresh(subnet, refresh)
 
   const map = useMemo(() => buildAddressMap(subnet, subnet.devices), [subnet])
   const cable = vlanColor(subnet.vlan?.vlanId)
@@ -97,6 +125,12 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const device = slot?.device ?? subnet.devices.find((candidate) => candidate.ip === ip) ?? null
   const blockIndex = blockChoice?.ip === ip ? blockChoice.index : (map.blockOf(ip)?.index ?? 0)
   const nextFree = useMemo(() => map.nextFree(NEXT_FREE_LIMIT), [map])
+  const sweep = live.sweeps[subnet.id]
+  const devicePulse = useCallback((deviceId: number) => devicePulseClass(live, deviceId), [live])
+  const activity = useMemo(
+    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, now: new Date() }),
+    [subnet, map.prefix, live.scans],
+  )
 
   const select = useCallback(
     (address: string) => {
@@ -166,6 +200,9 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
           selectedIp={ip}
           hover={hover}
           booting={booting}
+          passClass={pulseClass(sweep, live.settled, 'pass')}
+          fiberClass={pulseClass(sweep, live.settled, 'rx')}
+          devicePulse={devicePulse}
           onBlockChange={(index) => setBlockChoice({ ip, index })}
           onSelect={selectSlot}
           onHover={hoverSlot}
@@ -195,6 +232,7 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
           onFilter={setFilter}
           onSelect={select}
         />
+        <ActivityPanel entries={activity} onSelect={select} />
       </div>
       {editing && <DeviceEditModal device={editing} onSave={(body) => saveDevice(editing, body)} onClose={() => setEditing(null)} />}
       {toDelete && (
