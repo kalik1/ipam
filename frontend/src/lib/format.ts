@@ -14,6 +14,10 @@ export function timeAgo(iso: string): string {
   return `${Math.floor(months / 12)}y ago`
 }
 
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`
+}
+
 export function formatDay(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return 'unknown'

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatClock, formatDay, formatTimestamp, timeAgo } from './format'
+import { formatClock, formatDay, formatTimestamp, plural, timeAgo } from './format'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -75,5 +75,22 @@ describe('formatClock', () => {
 
   it('returns a placeholder for an invalid date', () => {
     expect(formatClock('not a date')).toBe('--:--:--')
+  })
+})
+
+describe('plural', () => {
+  it('uses the singular only for exactly one', () => {
+    expect(plural(1, 'device')).toBe('1 device')
+    expect(plural(0, 'device')).toBe('0 devices')
+    expect(plural(2, 'VLAN')).toBe('2 VLANs')
+  })
+
+  it('takes an irregular plural form', () => {
+    expect(plural(1, 'address stays', 'addresses stay')).toBe('1 address stays')
+    expect(plural(3, 'address stays', 'addresses stay')).toBe('3 addresses stay')
+  })
+
+  it('groups the digits of large counts', () => {
+    expect(plural(65534, 'free address', 'free addresses')).toBe('65,534 free addresses')
   })
 })

@@ -3,6 +3,7 @@ import type { AddressMap } from '@/lib/addressMap'
 import { splitIp, splitMac } from '@/lib/addressMath'
 import { cx } from '@/lib/cx'
 import { formatDay, timeAgo } from '@/lib/format'
+import { deviceName } from '@/lib/portGlyph'
 import { deviceFilterCounts, filterDevices, type DeviceFilter } from '@/lib/subnetDevices'
 import type { Device } from '@/types'
 import { Badge } from '@/components/Badge'
@@ -70,7 +71,7 @@ export function DeviceTable({ devices, map, prefix, filter, selectedIp, onFilter
                 </td>
                 <td>
                   <button type="button" className="linkbtn" aria-pressed={device.ip === selectedIp} onClick={() => onSelect(device.ip)}>
-                    {device.hostname.trim() || 'Unnamed device'}
+                    {deviceName(device)}
                   </button>
                 </td>
                 <td className="mono">

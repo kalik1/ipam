@@ -63,7 +63,7 @@ describe('wentOffline', () => {
   it('sends a device without a subnet to the device list, without a cable', () => {
     const [entry] = wentOffline([device(4, '10.99.0.4', '2026-10-31T08:00:00Z', null)], rows, 5)
 
-    expect(entry).toMatchObject({ name: 'unnamed device', href: '/devices', subnet: null, color: null })
+    expect(entry).toMatchObject({ name: 'Unnamed device', href: '/devices', subnet: null, color: null })
   })
 })
 

@@ -1,5 +1,5 @@
 import { RESULT_TIMEOUT_MS, formatValue, isRecord, resultSections, type ResultRow } from '@/lib/commandResult'
-import { timeAgo } from '@/lib/format'
+import { plural, timeAgo } from '@/lib/format'
 import type { CommandRun } from '@/lib/useCommandRun'
 import type { AgentResult } from '@/types'
 import { Button } from '@/components/Button'
@@ -65,10 +65,6 @@ function MetaEntry({ name, value }: { name: string; value: unknown }) {
       <p className="panel-body m-0">{formatValue(value) ?? 'None'}</p>
     </div>
   )
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`
 }
 
 export function CommandResultView({ result, onDismiss }: { result: AgentResult; onDismiss?: () => void }) {

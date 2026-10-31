@@ -3,7 +3,7 @@ import { addressRole, type AddressMapPool, type AddressRole, type AddressSlot } 
 import { addressMath, formatRange, splitMac } from '@/lib/addressMath'
 import { getErrorMessage } from '@/lib/api'
 import { formatDay, timeAgo } from '@/lib/format'
-import { stateLabel } from '@/lib/portGlyph'
+import { deviceName, stateLabel } from '@/lib/portGlyph'
 import type { Device } from '@/types'
 import { Button } from '@/components/Button'
 import { FormField, inputClass } from '@/components/FormField'
@@ -61,7 +61,7 @@ function DeviceDetails({ device, slot, onEdit, onDelete }: { device: Device; slo
         <StatusLed state={online ? 'on' : 'off'} />
         {online ? 'Online' : `Offline, last seen ${timeAgo(device.lastSeen)}`}
       </div>
-      <h3 className="host">{device.hostname.trim() || 'Unnamed device'}</h3>
+      <h3 className="host">{deviceName(device)}</h3>
       <dl className="kv">
         <div>
           <dt>MAC address</dt>

@@ -1,4 +1,5 @@
 import { splitIp } from './addressMath'
+import { plural } from './format'
 import type { LiveEvent } from './liveEvents'
 import type { ScanReportData } from './liveState'
 import { deviceName } from './portGlyph'
@@ -48,10 +49,6 @@ function startOfDay(date: Date): number {
 function hostLabel(ip: string, prefix: number): string {
   const { network, host } = splitIp(ip, prefix)
   return network ? `.${host}` : ip
-}
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
 function scanEntries(scans: readonly ScanReportData[], subnetId: number): ActivityEntry[] {

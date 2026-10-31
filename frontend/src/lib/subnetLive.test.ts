@@ -61,7 +61,7 @@ describe('subnetActivity', () => {
     expect(entries.map(({ kind, who, what, ip }) => ({ kind, who, what, ip }))).toEqual([
       { kind: 'scan', who: 'hq-scanner', what: 'reported 3 devices here', ip: null },
       { kind: 'new', who: 'pixel-visitor', what: 'appeared on .150', ip: '192.168.1.150' },
-      { kind: 'offline', who: 'unnamed device', what: 'last seen on .105', ip: '192.168.1.105' },
+      { kind: 'offline', who: 'Unnamed device', what: 'last seen on .105', ip: '192.168.1.105' },
     ])
     expect(entries.map((entry) => entry.at)).toEqual([
       new Date(2026, 9, 31, 12, 4, 31).toISOString(),

@@ -2,15 +2,11 @@ import type { CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { splitIp } from '@/lib/addressMath'
 import type { StatusFilter } from '@/lib/deviceList'
-import { timeAgo } from '@/lib/format'
-import { portDescription } from '@/lib/portGlyph'
+import { plural, timeAgo } from '@/lib/format'
+import { UNNAMED_DEVICE, portDescription } from '@/lib/portGlyph'
 import type { TopologyBranch, TopologyPort, TopologySubnetNode } from '@/lib/topology'
 import { AllocationSegments } from '@/components/addressMap/AllocationBar'
 import { Port } from '@/components/addressMap/Port'
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
-}
 
 function visiblePorts(ports: TopologyPort[], status: StatusFilter): TopologyPort[] {
   return status === 'all' ? ports : ports.filter((port) => port.device.status === status)
@@ -29,7 +25,7 @@ function DevicePort({ port, prefix, cable }: { port: TopologyPort; prefix: numbe
       </span>
       <span className="seen">{timeAgo(port.device.lastSeen)}</span>
       <span className="host" aria-hidden="true">
-        {hostname || <span className="cell-muted">Unnamed device</span>}
+        {hostname || <span className="cell-muted">{UNNAMED_DEVICE}</span>}
       </span>
     </li>
   )

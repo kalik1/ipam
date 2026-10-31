@@ -24,8 +24,10 @@ export function portClass(slot: AddressSlot): string {
   return cx('port', PORT_KIND[slot.state], link, slot.pools.length > 0 && 'inpool', slot.gateway && 'isgw')
 }
 
+export const UNNAMED_DEVICE = 'Unnamed device'
+
 export function deviceName(device: { hostname?: string }): string {
-  return device.hostname?.trim() || 'unnamed device'
+  return device.hostname?.trim() || UNNAMED_DEVICE
 }
 
 export function portDescription(slot: AddressSlot<AddressMapDevice & { hostname?: string }>): string {

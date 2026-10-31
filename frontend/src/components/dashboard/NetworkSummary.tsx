@@ -1,9 +1,6 @@
+import { plural } from '@/lib/format'
 import { LOW_FREE_RATIO, type Rack } from '@/lib/rack'
 import { AllocationSegments } from '@/components/addressMap/AllocationBar'
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
-}
 
 const LOW_PERCENT = LOW_FREE_RATIO * 100
 
