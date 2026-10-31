@@ -104,10 +104,31 @@ async function safePrint(client: ApiClient, path: string): Promise<Row[]> {
   }
 }
 
+function parseConfig(params: unknown): ConnectorConfig {
+  if (typeof params !== 'object' || params === null) {
+    throw new Error('missing connector params (expected { host, port, username, password })');
+  }
+  const { host, port, username, password } = params as Record<string, unknown>;
+  if (typeof host !== 'string' || host.length === 0) {
+    throw new Error('invalid params: host must be a non-empty string');
+  }
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('invalid params: port must be an integer between 1 and 65535');
+  }
+  if (typeof username !== 'string') {
+    throw new Error('invalid params: username must be a string');
+  }
+  if (typeof password !== 'string') {
+    throw new Error('invalid params: password must be a string');
+  }
+  return { host, port, username, password };
+}
+
 export function createMikrotikConnector(): Connector {
   return {
     name: 'mikrotik',
-    async read(config: ConnectorConfig): Promise<ConnectorResult> {
+    async read(params: unknown): Promise<ConnectorResult> {
+      const config = parseConfig(params);
       const client = createApiClient({
         host: config.host,
         port: config.port,

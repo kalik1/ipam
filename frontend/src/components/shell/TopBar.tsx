@@ -4,6 +4,7 @@ import { useTheme } from '@/lib/useTheme'
 import { Button } from '@/components/Button'
 import { ThemeIcon } from '@/components/icons'
 import { GlobalSearch } from './GlobalSearch'
+import { ScanNow } from './ScanNow'
 
 function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   return (
@@ -31,6 +32,7 @@ export function TopBar({ crumbs, actionsRef }: { crumbs: Crumb[]; actionsRef: (e
       <Breadcrumbs crumbs={crumbs} />
       <div className="topbar-tools">
         <GlobalSearch />
+        <ScanNow />
         <Button icon aria-label={themeLabel} title={themeLabel} onClick={toggle}>
           <ThemeIcon />
         </Button>

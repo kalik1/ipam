@@ -19,6 +19,11 @@ export type Pulses = Record<number, Pulse>
 
 export type ScanReportData = LiveEventData['scan.report']
 
+export interface PendingCommand {
+  agent: string
+  connector: string
+}
+
 export interface LiveState {
   link: LinkStatus
   received: number
@@ -30,6 +35,14 @@ export interface LiveState {
   plugs: Pulses
   fades: Pulses
   scans: ScanReportData[]
+  pending: Record<string, PendingCommand>
+  failures: CommandFailure[]
+}
+
+export interface CommandFailure extends PendingCommand {
+  commandId: string
+  error: string
+  seq: number
 }
 
 export interface AgentSnapshot {
@@ -45,6 +58,7 @@ export type LiveAction =
 
 export const RECENT_SCANS_LIMIT = 50
 export const PULSE_MS = 3000
+export const RECENT_FAILURES_LIMIT = 10
 
 export const INITIAL_LIVE_STATE: LiveState = {
   link: 'connecting',
@@ -57,6 +71,8 @@ export const INITIAL_LIVE_STATE: LiveState = {
   plugs: {},
   fades: {},
   scans: [],
+  pending: {},
+  failures: [],
 }
 
 type AgentUpdate = (agent: LiveAgent) => LiveAgent
@@ -103,18 +119,46 @@ function applyEvent(state: LiveState, event: LiveEvent): LiveState {
         ...state,
         agents: upsertAgent(state.agents, event.data.agent, (a) => ({ ...a, connected: true, heartbeats: a.heartbeats + 1 })),
       }
-    case 'agent.disconnected':
-      return { ...state, agents: updateAgent(state.agents, event.data.agent, (a) => ({ ...a, connected: false })) }
+    case 'agent.disconnected': {
+      const { agent } = event.data
+      return {
+        ...state,
+        agents: updateAgent(state.agents, agent, (a) => ({ ...a, connected: false })),
+        pending: Object.fromEntries(Object.entries(state.pending).filter(([, command]) => command.agent !== agent)),
+      }
+    }
     case 'scan.report':
       return applyScan(state, event.data)
     case 'device.created':
       return { ...state, plugs: pulse(state.plugs, [event.data.deviceId], state.received) }
     case 'device.offline':
       return { ...state, fades: pulse(state.fades, event.data.deviceIds, state.received) }
-    case 'command.sent':
+    case 'command.sent': {
+      const { commandId, agent, connector } = event.data
+      return {
+        ...state,
+        pending: { ...state.pending, [commandId]: { agent, connector } },
+        failures: state.failures.filter((failure) => failure.agent !== agent || failure.connector !== connector),
+      }
+    }
     case 'command.result':
-      return state
+      return applyResult(state, event.data)
   }
+}
+
+function applyResult(state: LiveState, result: LiveEventData['command.result']): LiveState {
+  const command = state.pending[result.commandId]
+  if (!command) return state
+  const pending = { ...state.pending }
+  delete pending[result.commandId]
+  if (result.ok) return { ...state, pending }
+  const failure: CommandFailure = {
+    commandId: result.commandId,
+    ...command,
+    error: result.error ?? 'Unknown error',
+    seq: state.received,
+  }
+  return { ...state, pending, failures: [failure, ...state.failures].slice(0, RECENT_FAILURES_LIMIT) }
 }
 
 function applySnapshot(state: LiveState, snapshot: AgentSnapshot[]): LiveState {
@@ -132,7 +176,7 @@ function applySnapshot(state: LiveState, snapshot: AgentSnapshot[]): LiveState {
 export function liveReducer(state: LiveState, action: LiveAction): LiveState {
   switch (action.kind) {
     case 'link':
-      return { ...state, link: action.status }
+      return action.status === 'down' ? { ...state, link: 'down', pending: {} } : { ...state, link: action.status }
     case 'agents':
       return applySnapshot(state, action.agents)
     case 'settle':
@@ -150,6 +194,15 @@ export function blinkClass(count: number, name: string): string | undefined {
 export function pulseClass(pulse: Pulse | undefined, settled: number, name: string): string | undefined {
   if (!pulse || pulse.seq <= settled) return undefined
   return blinkClass(pulse.count, name)
+}
+
+export function isScanning(state: Pick<LiveState, 'pending'>): boolean {
+  return Object.keys(state.pending).length > 0
+}
+
+export function sweepClass(state: LiveState, subnetId: number): string | undefined {
+  if (isScanning(state)) return 'loop'
+  return pulseClass(state.sweeps[subnetId], state.settled, 'pass')
 }
 
 export function devicePulseClass(state: LiveState, deviceId: number): string | undefined {

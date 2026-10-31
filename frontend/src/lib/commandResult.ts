@@ -1,36 +1,32 @@
 import type { AgentResult } from '../types'
+import type { LiveEventData } from './liveEvents'
 
-export const RESULT_POLL_INTERVAL_MS = 2500
 export const RESULT_TIMEOUT_MS = 30_000
 
-export interface AwaitCommandResultOptions {
-  fetchResult: () => Promise<AgentResult>
-  commandId: string
-  intervalMs?: number
-  timeoutMs?: number
-  signal?: AbortSignal
+export type CommandResultEvent = LiveEventData['command.result']
+
+export type CommandRun =
+  | { status: 'idle' }
+  | { status: 'sending' }
+  | { status: 'waiting'; commandId: string }
+  | { status: 'done'; result: AgentResult }
+  | { status: 'timeout' }
+  | { status: 'error'; message: string }
+
+function resultFromEvent(event: CommandResultEvent, receivedAt: string): AgentResult {
+  if (event.ok) return { id: event.commandId, ok: true, receivedAt }
+  return { id: event.commandId, ok: false, error: event.error ?? 'Unknown error', receivedAt }
 }
 
-function pause(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) return resolve()
-    const timer = setTimeout(done, ms)
-    function done() {
-      clearTimeout(timer)
-      signal?.removeEventListener('abort', done)
-      resolve()
-    }
-    signal?.addEventListener('abort', done)
-  })
-}
-
-async function latestMatching(fetchResult: () => Promise<AgentResult>, commandId: string): Promise<AgentResult | null> {
-  try {
-    const latest = await fetchResult()
-    return latest.id === commandId ? latest : null
-  } catch {
-    return null
-  }
+export function commandOutcome(
+  commandId: string,
+  event: CommandResultEvent | undefined,
+  latest: AgentResult | null,
+  now: string,
+): CommandRun {
+  if (latest?.id === commandId) return { status: 'done', result: latest }
+  if (event) return { status: 'done', result: resultFromEvent(event, now) }
+  return { status: 'timeout' }
 }
 
 export type ResultRow = Record<string, unknown>
@@ -75,22 +71,4 @@ export function formatValue(value: unknown): string | null {
   if (value === undefined || value === null) return null
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
-}
-
-export async function awaitCommandResult({
-  fetchResult,
-  commandId,
-  intervalMs = RESULT_POLL_INTERVAL_MS,
-  timeoutMs = RESULT_TIMEOUT_MS,
-  signal,
-}: AwaitCommandResultOptions): Promise<AgentResult | null> {
-  const deadline = Date.now() + timeoutMs
-  for (;;) {
-    await pause(intervalMs, signal)
-    if (signal?.aborted) return null
-    const found = await latestMatching(fetchResult, commandId)
-    if (signal?.aborted) return null
-    if (found) return found
-    if (Date.now() >= deadline) return null
-  }
 }

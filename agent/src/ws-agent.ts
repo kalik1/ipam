@@ -1,5 +1,6 @@
+import { createDemoConnector } from './connectors/demo.ts';
 import { createMikrotikConnector } from './connectors/mikrotik.ts';
-import type { Connector, ConnectorConfig } from './connectors/types.ts';
+import type { Connector } from './connectors/types.ts';
 
 const DEFAULT_SERVER = 'ws://localhost:3000';
 const DEFAULT_AGENT_NAME = 'mock-agent';
@@ -10,6 +11,7 @@ const BACKOFF_MAX_MS = 30_000;
 
 const CONNECTORS: Record<string, Connector> = {
   mikrotik: createMikrotikConnector(),
+  demo: createDemoConnector(),
 };
 
 interface WsOptions {
@@ -30,7 +32,7 @@ function printUsage(): void {
       `  --server <url>       Server WS base URL (default: ${DEFAULT_SERVER})`,
       `  --agent-name <name>  Agent name (default: ${DEFAULT_AGENT_NAME})`,
       `  --platform <name>    Platform label (default: ${DEFAULT_PLATFORM})`,
-      '  --connector <name>   Connector to register (repeatable); supported: mikrotik',
+      `  --connector <name>   Connector to register (repeatable); supported: ${Object.keys(CONNECTORS).join(', ')}`,
       '  -h, --help           Show this help',
     ].join('\n'),
   );
@@ -130,27 +132,6 @@ function toText(data: unknown): string {
     return Buffer.from(view.buffer, view.byteOffset, view.byteLength).toString('utf8');
   }
   return String(data);
-}
-
-function parseConnectorConfig(params: unknown): ConnectorConfig | string {
-  if (typeof params !== 'object' || params === null) {
-    return 'missing connector params (expected { host, port, username, password })';
-  }
-  const record = params as Record<string, unknown>;
-  const { host, port, username, password } = record;
-  if (typeof host !== 'string' || host.length === 0) {
-    return 'invalid params: host must be a non-empty string';
-  }
-  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
-    return 'invalid params: port must be an integer between 1 and 65535';
-  }
-  if (typeof username !== 'string') {
-    return 'invalid params: username must be a string';
-  }
-  if (typeof password !== 'string') {
-    return 'invalid params: password must be a string';
-  }
-  return { host, port, username, password };
 }
 
 class WsAgent {
@@ -320,16 +301,9 @@ class WsAgent {
       );
       return;
     }
-    const configOrError = parseConnectorConfig(message['params']);
-    if (typeof configOrError === 'string') {
-      this.sendResult(id, false, configOrError);
-      return;
-    }
-    console.log(
-      `ws-agent: running connector "${connectorName}" on ${configOrError.host}:${configOrError.port}`,
-    );
+    console.log(`ws-agent: running connector "${connectorName}"`);
     try {
-      const result = await connector.read(configOrError);
+      const result = await connector.read(message['params']);
       this.sendResult(id, true, result);
       console.log(
         `ws-agent: connector "${connectorName}" returned ${result.devices.length} device(s)`,

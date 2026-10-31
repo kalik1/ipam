@@ -9,6 +9,7 @@
 @import "./styles/live.css";
 @import "./styles/discovery-pages.css";
 @import "./styles/live-scans.css";
+@import "./styles/scan-now.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));

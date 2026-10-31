@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { configFromFields, parseJsonObject, summarizeConfig } from './connectors'
+import { CONNECTOR_FIELDS, CONNECTOR_TYPES, configFromFields, parseJsonObject, summarizeConfig } from './connectors'
 
 describe('configFromFields', () => {
   it('builds config from structured fields, skipping blanks', () => {
@@ -14,6 +14,12 @@ describe('configFromFields', () => {
 
   it('returns an empty object when all fields are blank', () => {
     expect(configFromFields('mikrotik', {})).toEqual({})
+  })
+
+  it('offers a demo type that needs no settings', () => {
+    expect(CONNECTOR_TYPES).toContain('demo')
+    expect(CONNECTOR_FIELDS.demo).toEqual([])
+    expect(configFromFields('demo', {})).toEqual({})
   })
 })
 
@@ -44,6 +50,10 @@ describe('summarizeConfig', () => {
 
   it('handles missing mikrotik fields', () => {
     expect(summarizeConfig('mikrotik', { host: '10.0.0.1' })).toBe('10.0.0.1')
+  })
+
+  it('says a connector without settings has none', () => {
+    expect(summarizeConfig('demo', {})).toBe('No settings')
   })
 
   it('falls back to JSON for unknown types', () => {

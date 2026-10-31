@@ -64,6 +64,37 @@ with the `X-API-Key` header and prints the JSON response
 (`received`, `created`, `updated`, `reportId`). Exit code is `0` on success and
 `1` on failure (an invalid API key prints a clear "invalid API key" message).
 
+## WebSocket agent (connectors)
+
+The WebSocket agent stays connected to the backend, sends a heartbeat every 30s
+and runs connector commands sent by the backend (an assignment's schedule,
+"Run now" on the Agents page, or "Scan now" in the top bar). It connects to the
+backend directly, not through the Vite proxy.
+
+```bash
+npm run ws -- --api-key ipam-... --server ws://localhost:3000 --agent-name myagent --connector demo
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--api-key <key>` | env `IPAM_API_KEY` | API key sent in the `hello` message |
+| `--server <url>` | `ws://localhost:3000` | Backend base URL (`http://` is turned into `ws://`) |
+| `--agent-name <name>` | `mock-agent` | Agent name |
+| `--platform <platform>` | `linux` | Platform label |
+| `--connector <name>` | none | Connector to expose (repeatable): `mikrotik`, `demo` |
+
+Connectors:
+
+- `mikrotik`: reads a real RouterOS device through its API. Params:
+  `{ host, port, username, password }`. Unreachable hosts fail with the
+  connection error.
+- `demo`: needs no params. After a 1-2 second pause it returns a handful of fake
+  devices in the seeded subnets: four every time and a random half of seven
+  others, three of which are not in the seed (`192.168.1.42`, `192.168.2.77`,
+  `172.16.4.15` are created on first sight). Use it to see a successful scan end to
+  end: create a connector of type `demo` with an empty config on the Connectors
+  page, assign it to the agent on the Agents page, then click "Scan now".
+
 ## Typecheck
 
 ```bash

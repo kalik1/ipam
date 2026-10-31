@@ -5,7 +5,7 @@ export interface ConnectorField {
   default?: string
 }
 
-export const CONNECTOR_TYPES = ['mikrotik']
+export const CONNECTOR_TYPES = ['mikrotik', 'demo']
 
 export const CONNECTOR_FIELDS: Record<string, ConnectorField[]> = {
   mikrotik: [
@@ -14,6 +14,7 @@ export const CONNECTOR_FIELDS: Record<string, ConnectorField[]> = {
     { key: 'username', label: 'Username', type: 'string' },
     { key: 'password', label: 'Password', type: 'password' },
   ],
+  demo: [],
 }
 
 export function configFromFields(name: string, fields: Record<string, string>): Record<string, unknown> | null {
@@ -49,6 +50,7 @@ export function summarizeConfig(name: string, config: Record<string, unknown>): 
     const parts = [host && port ? `${host}:${port}` : host, username].filter(Boolean)
     if (parts.length > 0) return parts.join(' ')
   }
+  if (Object.keys(config).length === 0) return 'No settings'
   const json = JSON.stringify(config)
   return json.length > 60 ? `${json.slice(0, 60)}...` : json
 }

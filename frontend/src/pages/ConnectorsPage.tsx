@@ -238,7 +238,7 @@ function ConnectorForm({
       }
       config = parsed
     }
-    if (Object.keys(config).length === 0) {
+    if (Object.keys(config).length === 0 && fieldDefs?.length !== 0) {
       setError('Config must not be empty')
       return
     }
@@ -262,7 +262,7 @@ function ConnectorForm({
         </p>
       )}
       <div className="cols-2">
-        <FormField label="Type" hint="Connector type, for example mikrotik">
+        <FormField label="Type" hint="Connector type: mikrotik, or demo for fake devices">
           <input
             className={inputClass}
             value={name}
@@ -280,7 +280,9 @@ function ConnectorForm({
           <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Core router" />
         </FormField>
       </div>
-      {defs ? (
+      {defs?.length === 0 ? (
+        <p className="disc-note">This connector type needs no settings.</p>
+      ) : defs ? (
         <div className="cols-2">
           {defs.map((field) => (
             <FormField key={field.key} label={field.label}>
