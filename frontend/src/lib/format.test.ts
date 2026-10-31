@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { timeAgo, utilizationColor } from './format'
+import { formatDay, timeAgo, utilizationColor } from './format'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -62,5 +62,15 @@ describe('utilizationColor', () => {
   it('is danger above 90%', () => {
     expect(utilizationColor(91)).toBe('danger')
     expect(utilizationColor(100)).toBe('danger')
+  })
+})
+
+describe('formatDay', () => {
+  it('writes a date as month, day and year', () => {
+    expect(formatDay('2026-03-02T10:00:00Z')).toBe('Mar 2, 2026')
+  })
+
+  it('returns "unknown" for invalid dates', () => {
+    expect(formatDay('not-a-date')).toBe('unknown')
   })
 })
