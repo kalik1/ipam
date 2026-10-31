@@ -21,8 +21,8 @@ export interface Subnet {
   gateways: string[]
   includeFirstLast: boolean
   dhcpPools: DhcpPool[]
-  vlanId: number
-  vlan: Vlan
+  vlanId: number | null
+  vlan: Vlan | null
   description: string
   domainName: string
   dnsServers: string
