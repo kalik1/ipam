@@ -36,11 +36,3 @@ export function formatClock(iso: string): string {
   if (Number.isNaN(date.getTime())) return '--:--:--'
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
-
-export type UtilizationLevel = 'ok' | 'warn' | 'danger'
-
-export function utilizationColor(percent: number): UtilizationLevel {
-  if (percent > 90) return 'danger'
-  if (percent > 75) return 'warn'
-  return 'ok'
-}

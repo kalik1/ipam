@@ -1,4 +1,4 @@
-import { buildAddressMap, type AddressCounters, type AddressMapSubnet, type AddressSlot } from './addressMap'
+import { buildAddressMap, type AddressCounters, type AddressMap, type AddressMapSubnet, type AddressSlot } from './addressMap'
 import { ipToNumber } from './ip'
 import { vlanColor, vlanLabel } from './vlan'
 import type { Subnet, Topology, TopologyDevice, TopologySubnet, TopologyVlan } from '@/types'
@@ -19,6 +19,7 @@ export interface TopologySubnetNode {
   gateways: string[]
   href: string
   counters: AddressCounters
+  map: AddressMap<TopologyDevice>
   ports: TopologyPort[]
 }
 
@@ -60,7 +61,7 @@ function subnetNode(subnet: TopologySubnet, row: TopologySubnetRow | undefined):
       }
     })
     .sort((a, b) => a.slot.value - b.slot.value)
-  return { id: subnet.id, name: subnet.name, cidr: subnet.cidr, prefix: map.prefix, gateways: subnet.gateways, href, counters: map.counters, ports }
+  return { id: subnet.id, name: subnet.name, cidr: subnet.cidr, prefix: map.prefix, gateways: subnet.gateways, href, counters: map.counters, map, ports }
 }
 
 function branch(vlan: TopologyVlan, rows: ReadonlyMap<number, TopologySubnetRow>): TopologyBranch {

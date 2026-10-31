@@ -7,14 +7,26 @@ interface Segment {
   color?: string
 }
 
-export function AllocationSegments({ counters, cable }: { counters: AddressCounters; cable: string }) {
-  const segments: Segment[] = [
+function occupiedSegments(counters: AddressCounters, cable: string | undefined): Segment[] {
+  if (!cable) return [{ key: 'occ', className: 'seg occ', count: counters.occupied }]
+  return [
     { key: 'on', className: 'seg on', count: counters.occupiedOnline, color: cable },
     { key: 'off', className: 'seg off', count: counters.occupiedOffline, color: cable },
+  ]
+}
+
+function occupiedLabel(counters: AddressCounters, cable: string | undefined): string {
+  if (!cable) return `${counters.occupied} occupied`
+  return `${counters.occupiedOnline} occupied online, ${counters.occupiedOffline} occupied offline`
+}
+
+export function AllocationSegments({ counters, cable }: { counters: AddressCounters; cable?: string }) {
+  const segments: Segment[] = [
+    ...occupiedSegments(counters, cable),
     { key: 'res', className: 'seg res', count: counters.reserved },
     { key: 'free', className: 'seg free', count: counters.free },
   ]
-  const label = `${counters.occupiedOnline} occupied online, ${counters.occupiedOffline} occupied offline, ${counters.reserved} reserved, ${counters.free} free of ${counters.usable} usable addresses`
+  const label = `${occupiedLabel(counters, cable)}, ${counters.reserved} reserved, ${counters.free} free of ${counters.usable} usable addresses`
   return (
     <div className="allocbar" role="img" aria-label={label}>
       {segments

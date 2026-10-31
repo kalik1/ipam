@@ -10,6 +10,7 @@
 @import "./styles/discovery-pages.css";
 @import "./styles/live-scans.css";
 @import "./styles/scan-now.css";
+@import "./styles/dashboard.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));
@@ -92,35 +93,6 @@
   --color-gw: var(--gw);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
-
-  --color-slate-50: var(--text);
-  --color-slate-100: var(--text);
-  --color-slate-200: var(--text);
-  --color-slate-300: var(--text-2);
-  --color-slate-400: var(--text-2);
-  --color-slate-500: var(--text-3);
-  --color-slate-600: var(--text-3);
-  --color-slate-700: var(--line);
-  --color-slate-800: var(--line);
-  --color-slate-900: var(--panel);
-  --color-slate-950: var(--bg);
-  --color-indigo-300: var(--accent);
-  --color-indigo-400: var(--accent);
-  --color-indigo-500: var(--accent);
-  --color-indigo-600: var(--accent);
-  --color-indigo-700: var(--accent);
-  --color-indigo-950: var(--accent-ink);
-  --color-emerald-300: var(--led);
-  --color-emerald-400: var(--led);
-  --color-emerald-500: var(--led);
-  --color-red-300: var(--danger);
-  --color-red-400: var(--danger);
-  --color-red-500: var(--danger);
-  --color-red-600: var(--danger);
-  --color-amber-400: var(--warn);
-  --color-amber-500: var(--warn);
-  --color-sky-400: var(--pool);
-  --color-sky-500: var(--pool);
 }
 
 @layer base {
