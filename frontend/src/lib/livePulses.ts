@@ -51,8 +51,9 @@ export function pulseClass(pulse: Pulse | undefined, settled: number, name: stri
 }
 
 export function sweepClass(state: LiveState, subnetId: number): string | undefined {
-  if (isScanning(state)) return 'loop'
-  return pulseClass(state.sweeps[subnetId], state.settled, 'pass')
+  const pass = pulseClass(state.sweeps[subnetId], state.settled, 'pass')
+  if (pass) return pass
+  return isScanning(state) ? 'loop' : undefined
 }
 
 export function devicePulseClass(state: LiveState, deviceId: number): string | undefined {

@@ -353,12 +353,26 @@ describe('pending commands', () => {
 
   it('gives the scan report of a result its single pass once no command is pending', () => {
     const state = run([sent('c1'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
-    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
 
     expect(sweepClass(state, 1)).toBe('pass-a')
     expect(sweepClass(state, 2)).toBeUndefined()
-    expect(sweepClass(stillScanning, 1)).toBe('loop')
+  })
+
+  it('runs the single pass of a scan report instead of the loop while other commands are pending, so the seen LEDs follow it', () => {
+    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+
+    expect(sweepClass(stillScanning, 1)).toBe('pass-a')
     expect(devicePulseClass(stillScanning, 7)).toBe('seen-a')
+    expect(sweepClass(stillScanning, 2)).toBe('loop')
+  })
+
+  it('resumes the loop on a subnet once its pass settled, while commands are still pending', () => {
+    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+    const settled = run([{ kind: 'settle', seq: stillScanning.received }], stillScanning)
+    const done = run([result('c2')], settled)
+
+    expect(sweepClass(settled, 1)).toBe('loop')
+    expect(sweepClass(done, 1)).toBeUndefined()
   })
 
   it('stops waiting for the commands of an agent that disconnected', () => {
