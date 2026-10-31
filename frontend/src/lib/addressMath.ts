@@ -18,7 +18,7 @@ export interface AddressMath {
   hex: string
   decimal: string
   ptr: string
-  hostNumber: number | null
+  addressNumber: number | null
   usable: number
 }
 
@@ -89,9 +89,14 @@ export function addressMath(ip: string, cidr: string, includeFirstLast: boolean)
     hex: `0x${value.toString(16).toUpperCase().padStart(8, '0')}`,
     decimal: String(value),
     ptr: [...octets(value).reverse(), 'in-addr.arpa'].join('.'),
-    hostNumber: usable ? value - range.first + 1 : null,
+    addressNumber: usable ? value - range.first + 1 : null,
     usable: range?.count ?? 0,
   }
+}
+
+export function addressPosition({ addressNumber, usable }: Pick<AddressMath, 'addressNumber' | 'usable'>): string {
+  if (addressNumber === null) return 'Not usable'
+  return `Address ${addressNumber.toLocaleString('en-US')} of ${usable.toLocaleString('en-US')}`
 }
 
 export function formatRange(first: string, last: string): string {

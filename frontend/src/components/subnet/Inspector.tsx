@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addressRole, type AddressMapPool, type AddressRole, type AddressSlot } from '@/lib/addressMap'
-import { addressMath, formatRange, splitMac } from '@/lib/addressMath'
+import { addressMath, addressPosition, formatRange, splitMac } from '@/lib/addressMath'
 import { getErrorMessage } from '@/lib/api'
 import { formatDay, timeAgo } from '@/lib/format'
 import { deviceName, stateLabel } from '@/lib/portGlyph'
@@ -196,8 +196,8 @@ function AddressMathList({ ip, cidr, includeFirstLast }: { ip: string; cidr: str
           <dd title={math.ptr}>{math.ptr}</dd>
         </div>
         <div>
-          <dt>Host</dt>
-          <dd>{math.hostNumber === null ? 'Not a usable host' : `Host ${math.hostNumber.toLocaleString('en-US')} of ${math.usable.toLocaleString('en-US')}`}</dd>
+          <dt>Address</dt>
+          <dd>{addressPosition(math)}</dd>
         </div>
       </dl>
     </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressMath, formatRange, splitIp, splitMac, subnetFacts } from './addressMath'
+import { addressMath, addressPosition, formatRange, splitIp, splitMac, subnetFacts } from './addressMath'
 
 describe('subnetFacts', () => {
   it('derives netmask, wildcard, network, broadcast, usable range, reverse zone and size of a /24', () => {
@@ -37,14 +37,14 @@ describe('subnetFacts', () => {
 })
 
 describe('addressMath', () => {
-  it('splits the binary form at the prefix and gives hex, decimal, PTR name and host number', () => {
+  it('splits the binary form at the prefix and gives hex, decimal, PTR name and address number', () => {
     expect(addressMath('10.0.20.20', '10.0.20.0/24', false)).toEqual({
       networkBits: '00001010.00000000.00010100.',
       hostBits: '00010100',
       hex: '0x0A001414',
       decimal: '167777300',
       ptr: '20.20.0.10.in-addr.arpa',
-      hostNumber: 20,
+      addressNumber: 20,
       usable: 254,
     })
   })
@@ -53,18 +53,29 @@ describe('addressMath', () => {
     expect(addressMath('172.16.5.10', '172.16.4.0/22', false)).toMatchObject({
       networkBits: '10101100.00010000.000001',
       hostBits: '01.00001010',
-      hostNumber: 266,
+      addressNumber: 266,
       usable: 1022,
     })
   })
 
-  it('numbers hosts from the network address when the subnet includes it', () => {
-    expect(addressMath('10.0.1.0', '10.0.1.0/30', true)).toMatchObject({ hostNumber: 1, usable: 4 })
+  it('numbers addresses from the network address when the subnet includes it', () => {
+    expect(addressMath('10.0.1.0', '10.0.1.0/30', true)).toMatchObject({ addressNumber: 1, usable: 4 })
   })
 
-  it('gives no host number to the network and broadcast addresses', () => {
-    expect(addressMath('10.0.20.0', '10.0.20.0/24', false).hostNumber).toBeNull()
-    expect(addressMath('10.0.20.255', '10.0.20.0/24', false).hostNumber).toBeNull()
+  it('gives no address number to the network and broadcast addresses', () => {
+    expect(addressMath('10.0.20.0', '10.0.20.0/24', false).addressNumber).toBeNull()
+    expect(addressMath('10.0.20.255', '10.0.20.0/24', false).addressNumber).toBeNull()
+  })
+})
+
+describe('addressPosition', () => {
+  it('places an address among the usable addresses of its subnet', () => {
+    expect(addressPosition(addressMath('10.0.20.20', '10.0.20.0/24', false))).toBe('Address 20 of 254')
+    expect(addressPosition(addressMath('172.16.5.10', '172.16.0.0/16', false))).toBe('Address 1,290 of 65,534')
+  })
+
+  it('says the network and broadcast addresses are not usable', () => {
+    expect(addressPosition(addressMath('10.0.20.255', '10.0.20.0/24', false))).toBe('Not usable')
   })
 })
 
