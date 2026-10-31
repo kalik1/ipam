@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import api, { getErrorMessage } from '@/lib/api'
+import { useState } from 'react'
+import api from '@/lib/api'
 import { statusCounts, type StatusFilter } from '@/lib/deviceList'
+import { useLoadable } from '@/lib/loadable'
 import { buildTopologyTree, type TopologyBranch } from '@/lib/topology'
 import type { Subnet, Topology } from '@/types'
 import { EmptyState } from '@/components/EmptyState'
@@ -9,26 +10,11 @@ import { Selector } from '@/components/Selector'
 import { StatusLed } from '@/components/StatusLed'
 import { TopologyTree } from '@/components/topology/TopologyTree'
 
-type LoadState = { status: 'loading' } | { status: 'ready'; branches: TopologyBranch[] } | { status: 'error'; message: string }
-
 const STATUS_LABELS: Record<StatusFilter, string> = { all: 'All', online: 'Online', offline: 'Offline' }
 
-function useTopologyTree(): LoadState {
-  const [state, setState] = useState<LoadState>({ status: 'loading' })
-  useEffect(() => {
-    let active = true
-    Promise.all([api.get<Topology>('/topology'), api.get<Subnet[]>('/subnets')])
-      .then(([topology, subnets]) => {
-        if (active) setState({ status: 'ready', branches: buildTopologyTree(topology.data, subnets.data) })
-      })
-      .catch((error: unknown) => {
-        if (active) setState({ status: 'error', message: getErrorMessage(error, 'Failed to load the topology') })
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-  return state
+async function fetchTopologyTree(): Promise<TopologyBranch[]> {
+  const [topology, subnets] = await Promise.all([api.get<Topology>('/topology'), api.get<Subnet[]>('/subnets')])
+  return buildTopologyTree(topology.data, subnets.data)
 }
 
 function TopologyBar({ branches, status, onStatus }: { branches: TopologyBranch[]; status: StatusFilter; onStatus: (status: StatusFilter) => void }) {
@@ -67,20 +53,21 @@ function TopologyBar({ branches, status, onStatus }: { branches: TopologyBranch[
 }
 
 export default function TopologyPage() {
-  const state = useTopologyTree()
+  const { state } = useLoadable(fetchTopologyTree, 'Failed to load the topology')
   const [status, setStatus] = useState<StatusFilter>('all')
 
   if (state.status === 'loading') return <p className="text-fg-3">Loading topology...</p>
   if (state.status === 'error') return <p className="alert">{state.message}</p>
+  const branches = state.data
   return (
     <div className="topology-page">
-      <TopologyBar branches={state.branches} status={status} onStatus={setStatus} />
-      {state.branches.length === 0 ? (
+      <TopologyBar branches={branches} status={status} onStatus={setStatus} />
+      {branches.length === 0 ? (
         <Panel>
           <EmptyState title="No VLANs or subnets yet" message="Add a VLAN or a subnet to see the topology here" />
         </Panel>
       ) : (
-        <TopologyTree branches={state.branches} status={status} />
+        <TopologyTree branches={branches} status={status} />
       )}
     </div>
   )

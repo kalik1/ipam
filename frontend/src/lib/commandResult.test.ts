@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentResult } from '../types'
-import { commandOutcome, formatValue, resultSections } from './commandResult'
+import { commandOutcome, formatValue, isRunPending, resultSections, type CommandRun } from './commandResult'
 
 const NOW = '2026-10-31T10:00:05.000Z'
 
@@ -87,5 +87,23 @@ describe('formatValue', () => {
   it('has no text for a missing value', () => {
     expect(formatValue(undefined)).toBeNull()
     expect(formatValue(null)).toBeNull()
+  })
+})
+
+describe('isRunPending', () => {
+  it('is pending while the command is being sent or its result is awaited', () => {
+    expect(isRunPending({ status: 'sending' })).toBe(true)
+    expect(isRunPending({ status: 'waiting', commandId: 'c1' })).toBe(true)
+  })
+
+  it('is not pending before a run or once it ended, whatever the outcome', () => {
+    const ended: CommandRun[] = [
+      { status: 'idle' },
+      { status: 'done', result: result('c1') },
+      { status: 'timeout' },
+      { status: 'error', message: 'Agent not connected' },
+    ]
+
+    expect(ended.map(isRunPending)).toEqual([false, false, false, false])
   })
 })

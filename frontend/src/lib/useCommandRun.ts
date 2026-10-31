@@ -15,10 +15,6 @@ export interface CommandRunControls {
 const IDLE: CommandRun = { status: 'idle' }
 const RECENT_RESULTS_LIMIT = 20
 
-export function isRunPending(run: CommandRun): boolean {
-  return run.status === 'sending' || run.status === 'waiting'
-}
-
 async function latestResult(agent: string, signal: AbortSignal): Promise<AgentResult | null> {
   try {
     return (await api.get<AgentResult>(`/agents/${agent}/results`, { signal })).data

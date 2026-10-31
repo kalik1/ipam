@@ -1,0 +1,32 @@
+@layer components {
+  .tooltip {
+    position: fixed;
+    z-index: 100;
+    width: max-content;
+    max-width: min(320px, calc(100vw - 16px));
+  }
+  .tooltip.measuring {
+    top: 0;
+    left: 0;
+    visibility: hidden;
+  }
+  .tooltip.below {
+    padding-top: 6px;
+  }
+  .tooltip.above {
+    padding-bottom: 6px;
+  }
+  .tooltip-body {
+    display: block;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--panel-hi);
+    box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.55);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 450;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+}

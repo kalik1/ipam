@@ -3,6 +3,7 @@ import type { AddressCounters } from '@/lib/addressMap'
 import { formatRange, subnetFacts } from '@/lib/addressMath'
 import { cx } from '@/lib/cx'
 import type { SubnetDetail } from '@/types'
+import { Tooltip } from '@/components/Tooltip'
 import { VlanChip } from '@/components/VlanChip'
 import { AllocationBar } from '@/components/addressMap/AllocationBar'
 
@@ -31,9 +32,9 @@ function Fact({ label, value, mono = true }: { label: string; value: string; mon
   return (
     <div>
       <dt>{label}</dt>
-      <dd className={cx(mono && value !== 'None' && 'mono')} title={value}>
-        {value}
-      </dd>
+      <Tooltip tip={value} focusable>
+        <dd className={cx(mono && value !== 'None' && 'mono')}>{value}</dd>
+      </Tooltip>
     </div>
   )
 }

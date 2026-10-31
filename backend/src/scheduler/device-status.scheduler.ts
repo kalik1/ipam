@@ -22,7 +22,6 @@ export class DeviceStatusScheduler {
     });
     const deviceIds: number[] = [];
     for (const device of stale) {
-      if (device.status === 'offline') continue;
       device.status = 'offline';
       await this.deviceRepo.save(device);
       deviceIds.push(device.id);

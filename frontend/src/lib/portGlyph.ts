@@ -1,11 +1,18 @@
 import type { AddressMapDevice, AddressSlot, AddressState } from './addressMap'
 import { cx } from './cx'
 
-export const PORT_KIND: Record<AddressState, string> = {
-  occupied: 'k-occ',
-  reserved: 'k-res',
-  free: 'k-free',
-  'not-usable': 'k-na',
+export type StateClass = 'occ' | 'res' | 'free' | 'na'
+export type LinkClass = 'on' | 'off'
+
+export const STATE_CLASS = {
+  occupied: 'occ',
+  reserved: 'res',
+  free: 'free',
+  'not-usable': 'na',
+} as const satisfies Record<AddressState, StateClass>
+
+export function linkClass(status: AddressMapDevice['status']): LinkClass {
+  return status === 'online' ? 'on' : 'off'
 }
 
 const STATE_LABEL: Record<AddressState, string> = {
@@ -20,12 +27,14 @@ export function stateLabel(state: AddressState): string {
 }
 
 export function portClass(slot: AddressSlot): string {
-  const link = slot.state === 'occupied' && slot.device ? (slot.device.status === 'online' ? 'on' : 'off') : null
-  return cx('port', PORT_KIND[slot.state], link, slot.pools.length > 0 && 'inpool', slot.gateway && 'isgw')
+  const link = slot.state === 'occupied' && slot.device ? linkClass(slot.device.status) : null
+  return cx('port', `k-${STATE_CLASS[slot.state]}`, link, slot.pools.length > 0 && 'inpool', slot.gateway && 'isgw')
 }
 
+export const UNNAMED_DEVICE = 'Unnamed device'
+
 export function deviceName(device: { hostname?: string }): string {
-  return device.hostname?.trim() || 'unnamed device'
+  return device.hostname?.trim() || UNNAMED_DEVICE
 }
 
 export function portDescription(slot: AddressSlot<AddressMapDevice & { hostname?: string }>): string {

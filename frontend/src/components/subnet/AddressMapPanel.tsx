@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { AddressBlock, AddressMap, AddressSlot } from '@/lib/addressMap'
 import { cx } from '@/lib/cx'
-import { deviceName, portDescription } from '@/lib/portGlyph'
+import { STATE_CLASS, deviceName, portDescription } from '@/lib/portGlyph'
 import type { Device } from '@/types'
 import { Button } from '@/components/Button'
 import { Port } from '@/components/addressMap/Port'
@@ -108,7 +108,7 @@ export function AddressMapPanel({
   const focus = readout((hoverInBlock ? map.slot(hover) : null) ?? (selectedIp ? map.slot(selectedIp) : null))
 
   return (
-    <section className={cx('panel mappanel hud', fiberClass)} aria-label="Address map">
+    <section className={cx('panel mappanel hud fiber', fiberClass)} aria-label="Address map">
       <div className="facehead">
         <h2 className="panel-title">Address map</h2>
         <span className="vent" aria-hidden="true" />
@@ -140,7 +140,7 @@ export function AddressMapPanel({
             DHCP pool
           </span>
           <span className="lg">
-            <span className="sw na" />
+            <span className={`sw ${STATE_CLASS['not-usable']}`} />
             Not usable
           </span>
         </span>

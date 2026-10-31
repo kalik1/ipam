@@ -16,4 +16,7 @@ export class ScanReport {
 
   @Column({ type: 'datetime' })
   receivedAt: Date;
+
+  @Column({ type: 'simple-json', default: '[]' })
+  subnetIds: number[];
 }

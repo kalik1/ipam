@@ -47,7 +47,6 @@ describe('DeviceStatusScheduler', () => {
   it('marks stale online devices offline and emits one device.offline with exactly them', async () => {
     const stale = [
       makeDevice({ id: 3, status: 'online' }),
-      makeDevice({ id: 4, status: 'offline' }),
       makeDevice({ id: 9, status: 'online' }),
     ];
     deviceRepo.find.mockResolvedValue(stale);
@@ -57,7 +56,6 @@ describe('DeviceStatusScheduler', () => {
     expect(stale.map((device) => device.status)).toEqual([
       'offline',
       'offline',
-      'offline',
     ]);
     expect(deviceRepo.save).toHaveBeenCalledTimes(2);
     expect(events).toEqual([
@@ -65,15 +63,12 @@ describe('DeviceStatusScheduler', () => {
     ]);
   });
 
-  it('emits nothing when no device changed', async () => {
-    deviceRepo.find.mockResolvedValue([
-      makeDevice({ id: 4, status: 'offline' }),
-    ]);
-
+  it('only looks at devices that are still online, so devices already offline are never announced again', async () => {
     await scheduler.markStaleDevicesOffline();
 
-    expect(deviceRepo.save).not.toHaveBeenCalled();
-    expect(events).toEqual([]);
+    expect(deviceRepo.find).toHaveBeenCalledWith({
+      where: expect.objectContaining({ status: 'online' }),
+    });
   });
 
   it('emits nothing when no device is stale', async () => {

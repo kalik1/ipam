@@ -98,30 +98,10 @@
   }
 
   .dashboard .rack {
+    --fiber-length: 18%;
+    --fiber-duration: 1.5s;
     border-top-color: color-mix(in oklab, var(--accent) 50%, var(--line));
     box-shadow: inset 0 1px 0 var(--panel-hi), 0 0 80px -24px color-mix(in oklab, var(--led) 30%, transparent);
-  }
-  .dashboard .rack::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -1px;
-    z-index: 5;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #C9FDFF 50%, transparent) no-repeat;
-    background-size: 18% 100%;
-    opacity: 0;
-    filter: drop-shadow(0 0 4px var(--accent));
-    pointer-events: none;
-  }
-  .dashboard .rack.rx-a::before {
-    opacity: 1;
-    animation: fiber-pulse-a 1.5s linear 1 both;
-  }
-  .dashboard .rack.rx-b::before {
-    opacity: 1;
-    animation: fiber-pulse-b 1.5s linear 1 both;
   }
   .dashboard .rackhead {
     display: flex;
@@ -196,7 +176,7 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #9AA3AD, #4B525B 70%);
+    background: var(--screw);
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
   }
   .dashboard .unit .screw::after {
@@ -469,12 +449,5 @@
     .dashboard .unit .ustats {
       grid-column: 2;
     }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dashboard .rack.rx-a::before,
-  .dashboard .rack.rx-b::before {
-    opacity: 0;
   }
 }

@@ -1,5 +1,8 @@
 import { NavLink } from 'react-router-dom'
+import { occupancyText } from '@/lib/occupancy'
 import type { VlanCableGroup } from '@/lib/subnetIndex'
+import { OccupancyBar } from '@/components/OccupancyMeter'
+import { Tooltip } from '@/components/Tooltip'
 
 export function SubnetIndex({ groups }: { groups: VlanCableGroup[] }) {
   return (
@@ -14,20 +17,15 @@ export function SubnetIndex({ groups }: { groups: VlanCableGroup[] }) {
             {group.label}
           </div>
           {group.subnets.map((subnet) => (
-            <NavLink
-              key={subnet.id}
-              to={`/subnets/${subnet.id}`}
-              className="snet"
-              title={`${subnet.percent}% of usable addresses have a device`}
-            >
-              <span className="branch" style={{ background: group.color }} aria-hidden="true" />
-              <span className="nm">{subnet.name}</span>
-              <span className="pc mono">{subnet.percent}%</span>
-              <span className="cidr mono">{subnet.cidr}</span>
-              <span className="minibar" aria-hidden="true">
-                <i style={{ width: `${subnet.percent}%`, background: group.color }} />
-              </span>
-            </NavLink>
+            <Tooltip key={subnet.id} tip={occupancyText(subnet.occupancy)}>
+              <NavLink to={`/subnets/${subnet.id}`} className="snet">
+                <span className="branch" style={{ background: group.color }} aria-hidden="true" />
+                <span className="nm">{subnet.name}</span>
+                <span className="pc mono">{subnet.occupancy.allocatedPercent}%</span>
+                <span className="cidr mono">{subnet.cidr}</span>
+                <OccupancyBar occupancy={subnet.occupancy} color={group.color} />
+              </NavLink>
+            </Tooltip>
           ))}
         </div>
       ))}

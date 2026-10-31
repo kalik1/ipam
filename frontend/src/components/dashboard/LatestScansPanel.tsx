@@ -3,6 +3,7 @@ import type { ScanEntry } from '@/lib/dashboard'
 import { formatTimestamp, timeAgo } from '@/lib/format'
 import { Panel } from '@/components/Panel'
 import { Table, TableMessage } from '@/components/Table'
+import { Tooltip } from '@/components/Tooltip'
 
 const COLUMNS = 4
 
@@ -32,9 +33,9 @@ export function LatestScansPanel({ entries, failed }: { entries: ScanEntry[] | n
           ) : (
             entries.map((entry) => (
               <tr key={entry.key}>
-                <td className="text-fg-2" title={formatTimestamp(entry.receivedAt)}>
-                  {timeAgo(entry.receivedAt)}
-                </td>
+                <Tooltip tip={formatTimestamp(entry.receivedAt)} focusable>
+                  <td className="text-fg-2">{timeAgo(entry.receivedAt)}</td>
+                </Tooltip>
                 <td>
                   <span className="scan-agent">
                     {entry.agent}

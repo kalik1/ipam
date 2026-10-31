@@ -1,64 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getAgentAssignments, getErrorMessage } from '@/lib/api'
 import { agentRows, withHeartbeat, type AgentRow } from '@/lib/agentRows'
+import type { DeviceTotals } from '@/lib/dashboard'
 import type { CommandOutcome } from '@/lib/discovery'
 import { useLive, useLiveEvent } from '@/lib/live'
 import type { LiveEvent } from '@/lib/liveEvents'
+import { useLoadable, type Loadable } from '@/lib/loadable'
 import { buildTopologyTree, type TopologyBranch } from '@/lib/topology'
-import type { Agent, AgentAssignment, Device, ScanReport, Subnet, Topology } from '@/types'
+import { useLiveRefetch } from '@/lib/useLiveRefetch'
+import type { Agent, AgentAssignment, Device, ScanReport, Subnet, Summary, Topology } from '@/types'
 
-const LIVE_REFRESH_DELAY_MS = 150
 const OUTCOMES_LIMIT = 50
-
-export type Loadable<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; message: string }
 
 export interface NetworkData {
   branches: TopologyBranch[]
   offline: Device[]
-}
-
-function useLiveRefetch(matches: (event: LiveEvent) => boolean, refetch: () => void) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useLiveEvent((event) => {
-    if (timer.current || !matches(event)) return
-    timer.current = setTimeout(() => {
-      timer.current = null
-      refetch()
-    }, LIVE_REFRESH_DELAY_MS)
-  })
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current)
-    },
-    [],
-  )
-}
-
-function useLoadable<T>(fetcher: () => Promise<T>, failure: string) {
-  const [state, setState] = useState<Loadable<T>>({ status: 'loading' })
-
-  const refetch = useCallback(() => {
-    fetcher()
-      .then((data) => setState({ status: 'ready', data }))
-      .catch((error: unknown) => setState((current) => (current.status === 'ready' ? current : { status: 'error', message: getErrorMessage(error, failure) })))
-  }, [fetcher, failure])
-
-  useEffect(() => {
-    refetch()
-  }, [refetch])
-
-  return { state, refetch }
+  devices: DeviceTotals
 }
 
 async function fetchNetwork(): Promise<NetworkData> {
-  const [topology, subnets, offline] = await Promise.all([
+  const [topology, subnets, offline, summary] = await Promise.all([
     api.get<Topology>('/topology'),
     api.get<Subnet[]>('/subnets'),
     api.get<Device[]>('/devices', { params: { status: 'offline' } }),
+    api.get<Summary>('/summary'),
   ])
-  return { branches: buildTopologyTree(topology.data, subnets.data), offline: offline.data }
+  return { branches: buildTopologyTree(topology.data, subnets.data), offline: offline.data, devices: summary.data }
 }
 
 function changesNetwork(event: LiveEvent): boolean {

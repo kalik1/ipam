@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import api, { createDhcpPool, deleteDhcpPool, getErrorMessage, type DhcpPoolBody } from '@/lib/api'
 import { buildAddressMap, type AddressSlot } from '@/lib/addressMap'
-import { useLive, useLiveEvent } from '@/lib/live'
+import { useLive } from '@/lib/live'
+import type { LiveEvent } from '@/lib/liveEvents'
 import { devicePulseClass, pulseClass, sweepClass } from '@/lib/liveState'
-import { affectsSubnet, subnetActivity } from '@/lib/subnetLive'
+import { useLoadable, type Loadable } from '@/lib/loadable'
+import { affectsSubnet, startOfDay, subnetActivity } from '@/lib/subnetLive'
 import { selectedAddress, type DeviceFilter } from '@/lib/subnetDevices'
+import { useLiveRefetch } from '@/lib/useLiveRefetch'
 import { vlanColor } from '@/lib/vlan'
-import type { Device, DhcpPool, SubnetDetail } from '@/types'
+import type { Device, DhcpPool, ScanReport, SubnetDetail } from '@/types'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ActivityPanel } from '@/components/subnet/ActivityPanel'
 import { EmptyState } from '@/components/EmptyState'
@@ -20,13 +23,13 @@ import { DhcpPoolPanel, NextFreePanel } from '@/components/subnet/SidePanels'
 import { SubnetHeader } from '@/components/subnet/SubnetHeader'
 
 const NEXT_FREE_LIMIT = 12
+const TODAY_REPORTS_LIMIT = 100
 const LED_BOOT_MS = 600 + 256 * 5 + 100
-const LIVE_REFRESH_DELAY_MS = 150
 
-type LoadState = { status: 'loading' } | { status: 'ready'; subnet: SubnetDetail } | { status: 'not-found' } | { status: 'error'; message: string }
+type SubnetState = Loadable<SubnetDetail> | { status: 'not-found' }
 
 function useSubnet(id: string | undefined) {
-  const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [state, setState] = useState<SubnetState>({ status: 'loading' })
   const [booting, setBooting] = useState(false)
 
   const fetchSubnet = useCallback(async () => (await api.get<SubnetDetail>(`/subnets/${id}`)).data, [id])
@@ -37,7 +40,7 @@ function useSubnet(id: string | undefined) {
     fetchSubnet()
       .then((subnet) => {
         if (!active) return
-        setState({ status: 'ready', subnet })
+        setState({ status: 'ready', data: subnet })
         setBooting(true)
       })
       .catch((error: unknown) => {
@@ -57,7 +60,7 @@ function useSubnet(id: string | undefined) {
   }, [booting])
 
   const update = useCallback((change: (subnet: SubnetDetail) => SubnetDetail) => {
-    setState((current) => (current.status === 'ready' ? { status: 'ready', subnet: change(current.subnet) } : current))
+    setState((current) => (current.status === 'ready' ? { status: 'ready', data: change(current.data) } : current))
   }, [])
 
   const refresh = useCallback(async () => {
@@ -68,25 +71,21 @@ function useSubnet(id: string | undefined) {
   return { state, booting, update, refresh }
 }
 
-function useLiveRefresh(subnet: SubnetDetail, refresh: () => Promise<void>) {
-  const pending = useRef<ReturnType<typeof setTimeout> | null>(null)
+const NO_REPORTS: ScanReport[] = []
 
-  useLiveEvent((event) => {
-    if (pending.current) return
-    const deviceIds = subnet.devices.map((device) => device.id)
-    if (!affectsSubnet(event, subnet.id, deviceIds)) return
-    pending.current = setTimeout(() => {
-      pending.current = null
-      refresh().catch(() => undefined)
-    }, LIVE_REFRESH_DELAY_MS)
-  })
+function storesReportFor(subnetId: number) {
+  return (event: LiveEvent) =>
+    event.type === 'scan.report' && event.data.source === 'report' && event.data.subnets.some((group) => group.subnetId === subnetId)
+}
 
-  useEffect(
-    () => () => {
-      if (pending.current) clearTimeout(pending.current)
-    },
-    [],
-  )
+function useTodayReports(subnetId: number): ScanReport[] {
+  const fetchReports = useCallback(async () => {
+    const params = { subnetId, since: startOfDay(new Date()).toISOString(), limit: TODAY_REPORTS_LIMIT }
+    return (await api.get<ScanReport[]>('/scan/reports', { params })).data
+  }, [subnetId])
+  const { state, refetch } = useLoadable(fetchReports, 'Failed to load the scan reports')
+  useLiveRefetch(storesReportFor(subnetId), refetch)
+  return state.status === 'ready' ? state.data : NO_REPORTS
 }
 
 export default function SubnetDetailPage() {
@@ -96,7 +95,7 @@ export default function SubnetDetailPage() {
   if (state.status === 'loading') return <p className="text-fg-3">Loading subnet...</p>
   if (state.status === 'not-found') return <EmptyState title="Subnet not found" message="It may have been deleted." />
   if (state.status === 'error') return <p className="alert">{state.message}</p>
-  return <SubnetView subnet={state.subnet} booting={booting} update={update} refresh={refresh} />
+  return <SubnetView subnet={state.data} booting={booting} update={update} refresh={refresh} />
 }
 
 interface SubnetViewProps {
@@ -116,7 +115,10 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const live = useLive()
-  useLiveRefresh(subnet, refresh)
+  useLiveRefetch(
+    (event) => affectsSubnet(event, subnet.id, subnet.devices.map((candidate) => candidate.id)),
+    () => void refresh().catch(() => undefined),
+  )
 
   const map = useMemo(() => buildAddressMap(subnet, subnet.devices), [subnet])
   const cable = vlanColor(subnet.vlan?.vlanId)
@@ -124,12 +126,15 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const slot = map.slot(ip)
   const device = slot?.device ?? subnet.devices.find((candidate) => candidate.ip === ip) ?? null
   const blockIndex = blockChoice?.ip === ip ? blockChoice.index : (map.blockOf(ip)?.index ?? 0)
+  const [bootBlock, setBootBlock] = useState<number | null>(blockIndex)
+  if (bootBlock !== null && bootBlock !== blockIndex) setBootBlock(null)
   const nextFree = useMemo(() => map.nextFree(NEXT_FREE_LIMIT), [map])
   const sweep = live.sweeps[subnet.id]
   const devicePulse = useCallback((deviceId: number) => devicePulseClass(live, deviceId), [live])
+  const reports = useTodayReports(subnet.id)
   const activity = useMemo(
-    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, now: new Date() }),
-    [subnet, map.prefix, live.scans],
+    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, reports, now: new Date() }),
+    [subnet, map.prefix, live.scans, reports],
   )
 
   const select = useCallback(
@@ -199,7 +204,7 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
           cable={cable}
           selectedIp={ip}
           hover={hover}
-          booting={booting}
+          booting={booting && bootBlock === blockIndex}
           passClass={sweepClass(live, subnet.id)}
           fiberClass={pulseClass(sweep, live.settled, 'rx')}
           devicePulse={devicePulse}

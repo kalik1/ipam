@@ -1,7 +1,32 @@
 import type { ScanReportData } from './liveState'
 import { deviceName } from './portGlyph'
+import { LOW_FREE_RATIO, type RackSummary } from './rack'
 import { resultPath } from './search'
-import type { Device, ScanReport } from '../types'
+import type { Device, ScanReport, Summary } from '../types'
+
+export type DeviceTotals = Pick<Summary, 'devices' | 'devicesOnline' | 'devicesOffline'>
+
+export interface SummaryStat {
+  label: string
+  value: string
+  note: string
+  warn: boolean
+}
+
+function count(value: number): string {
+  return value.toLocaleString('en-US')
+}
+
+export function summaryStats(rack: RackSummary, devices: DeviceTotals): SummaryStat[] {
+  const { counters, freePercent, low } = rack
+  return [
+    { label: 'Devices', value: count(devices.devices), note: `${count(devices.devicesOnline)} online`, warn: false },
+    { label: 'Offline now', value: count(devices.devicesOffline), note: 'last seen over 5 min ago', warn: false },
+    { label: 'Usable addresses', value: count(counters.usable), note: '', warn: false },
+    { label: 'Free addresses', value: count(counters.free), note: `${freePercent}% of usable`, warn: false },
+    { label: 'Subnets low on free', value: count(low), note: `under ${LOW_FREE_RATIO * 100}% free`, warn: low > 0 },
+  ]
+}
 
 export interface OfflineEntry {
   id: number

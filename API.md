@@ -169,10 +169,11 @@ Body:
 - Comportamento: per ogni device nel body, upsert per IP (crea se nuovo, aggiorna mac/hostname/vendor/lastSeen se esistente). `status` diventa `online`. Se `subnetId` non è specificato nel body del device, il server cerca la subnet il cui CIDR contiene l'IP e la associa (o `null` se nessuna).
 
 ### GET /scan/reports
-- Query: `limit` (default 50, max 200)
-- 200: `ScanReport[]`
+- Query: `limit` (default 50, max 200), `subnetId` (number, solo i report con device in quella subnet), `since` (data ISO 8601, solo i report ricevuti da quel momento in poi)
+- 200: `ScanReport[]`, dal più recente
+- 400: `subnetId` non intero o `since` non è una data
 
-`ScanReport`: `{ "id": number, "agent": string, "platform": string, "deviceCount": number, "receivedAt": string }` (platform = `""` se non fornito)
+`ScanReport`: `{ "id": number, "agent": string, "platform": string, "deviceCount": number, "receivedAt": string, "subnetIds": number[] }` (platform = `""` se non fornito). `subnetIds` sono le subnet dei device del report, con lo stesso raggruppamento dell'evento `scan.report` (i device fuori da ogni subnet non compaiono; `[]` per i report salvati prima di questo campo).
 
 ## Agents (control plane)
 

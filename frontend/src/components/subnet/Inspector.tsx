@@ -1,14 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addressRole, type AddressMapPool, type AddressRole, type AddressSlot } from '@/lib/addressMap'
-import { addressMath, formatRange, splitMac } from '@/lib/addressMath'
+import { addressMath, addressPosition, formatRange, splitMac } from '@/lib/addressMath'
 import { getErrorMessage } from '@/lib/api'
 import { formatDay, timeAgo } from '@/lib/format'
-import { stateLabel } from '@/lib/portGlyph'
+import { deviceName, stateLabel } from '@/lib/portGlyph'
 import type { Device } from '@/types'
 import { Button } from '@/components/Button'
 import { FormField, inputClass } from '@/components/FormField'
 import { Panel } from '@/components/Panel'
 import { StatusLed } from '@/components/StatusLed'
+import { Tooltip } from '@/components/Tooltip'
 
 export interface AssignBody {
   hostname: string
@@ -61,24 +62,28 @@ function DeviceDetails({ device, slot, onEdit, onDelete }: { device: Device; slo
         <StatusLed state={online ? 'on' : 'off'} />
         {online ? 'Online' : `Offline, last seen ${timeAgo(device.lastSeen)}`}
       </div>
-      <h3 className="host">{device.hostname.trim() || 'Unnamed device'}</h3>
+      <h3 className="host">{deviceName(device)}</h3>
       <dl className="kv">
         <div>
           <dt>MAC address</dt>
-          <dd className={device.mac ? 'mono' : undefined} title={device.mac}>
-            {device.mac ? (
-              <>
-                <span className="oui">{mac.oui}</span>
-                {mac.nic}
-              </>
-            ) : (
-              'Unknown'
-            )}
-          </dd>
+          <Tooltip tip={device.mac} focusable>
+            <dd className={device.mac ? 'mono' : undefined}>
+              {device.mac ? (
+                <>
+                  <span className="oui">{mac.oui}</span>
+                  {mac.nic}
+                </>
+              ) : (
+                'Unknown'
+              )}
+            </dd>
+          </Tooltip>
         </div>
         <div>
           <dt>Vendor</dt>
-          <dd title={device.vendor}>{device.vendor || 'Unknown'}</dd>
+          <Tooltip tip={device.vendor} focusable>
+            <dd>{device.vendor || 'Unknown'}</dd>
+          </Tooltip>
         </div>
         <div>
           <dt>Last seen</dt>
@@ -193,11 +198,13 @@ function AddressMathList({ ip, cidr, includeFirstLast }: { ip: string; cidr: str
         </div>
         <div>
           <dt>PTR</dt>
-          <dd title={math.ptr}>{math.ptr}</dd>
+          <Tooltip tip={math.ptr} focusable>
+            <dd>{math.ptr}</dd>
+          </Tooltip>
         </div>
         <div>
-          <dt>Host</dt>
-          <dd>{math.hostNumber === null ? 'Not a usable host' : `Host ${math.hostNumber.toLocaleString('en-US')} of ${math.usable.toLocaleString('en-US')}`}</dd>
+          <dt>Address</dt>
+          <dd>{addressPosition(math)}</dd>
         </div>
       </dl>
     </div>

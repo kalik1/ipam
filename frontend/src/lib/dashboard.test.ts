@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { latestScans, wentOffline } from './dashboard'
+import { latestScans, summaryStats, wentOffline } from './dashboard'
 import type { ScanReportData } from './liveState'
+import type { RackSummary } from './rack'
 import type { Device, ScanReport, Subnet } from '@/types'
 
 function subnetOf(id: number, name: string): Subnet {
@@ -63,14 +64,14 @@ describe('wentOffline', () => {
   it('sends a device without a subnet to the device list, without a cable', () => {
     const [entry] = wentOffline([device(4, '10.99.0.4', '2026-10-31T08:00:00Z', null)], rows, 5)
 
-    expect(entry).toMatchObject({ name: 'unnamed device', href: '/devices', subnet: null, color: null })
+    expect(entry).toMatchObject({ name: 'Unnamed device', href: '/devices', subnet: null, color: null })
   })
 })
 
 describe('latestScans', () => {
   const reports: ScanReport[] = [
-    { id: 5, agent: 'probe', platform: 'linux', deviceCount: 6, receivedAt: '2026-10-31T10:00:00.000Z' },
-    { id: 4, agent: 'branch', platform: 'windows', deviceCount: 2, receivedAt: '2026-10-31T09:00:00.000Z' },
+    { id: 5, agent: 'probe', platform: 'linux', deviceCount: 6, receivedAt: '2026-10-31T10:00:00.000Z', subnetIds: [1] },
+    { id: 4, agent: 'branch', platform: 'windows', deviceCount: 2, receivedAt: '2026-10-31T09:00:00.000Z', subnetIds: [] },
   ]
 
   function scan(receivedAt: string, source: ScanReportData['source'], reportId?: number): ScanReportData {
@@ -100,5 +101,31 @@ describe('latestScans', () => {
     const [entry] = latestScans([], [scan('2026-10-31T10:02:00.000Z', 'connector')], new Map(), 5)
 
     expect(entry.platform).toBe('')
+  })
+})
+
+describe('summaryStats', () => {
+  const rack: RackSummary = {
+    counters: { usable: 1270, occupied: 9, occupiedOnline: 6, occupiedOffline: 3, reserved: 210, free: 1051 },
+    freePercent: 82,
+    low: 1,
+    subnets: 5,
+    vlans: 3,
+  }
+  const devices = { devices: 12, devicesOnline: 8, devicesOffline: 4 }
+
+  it('counts every device, with or without a subnet, from the device totals', () => {
+    expect(summaryStats(rack, devices).slice(0, 2)).toEqual([
+      { label: 'Devices', value: '12', note: '8 online', warn: false },
+      { label: 'Offline now', value: '4', note: 'last seen over 5 min ago', warn: false },
+    ])
+  })
+
+  it('takes usable and free addresses from the address map model and flags subnets low on free', () => {
+    expect(summaryStats(rack, devices).slice(2)).toEqual([
+      { label: 'Usable addresses', value: '1,270', note: '', warn: false },
+      { label: 'Free addresses', value: '1,051', note: '82% of usable', warn: false },
+      { label: 'Subnets low on free', value: '1', note: 'under 10% free', warn: true },
+    ])
   })
 })

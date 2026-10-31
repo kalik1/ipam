@@ -2,15 +2,12 @@ import { useState, type FormEvent } from 'react'
 import type { PoolUsage } from '@/lib/addressMap'
 import { formatRange, splitIp } from '@/lib/addressMath'
 import { getErrorMessage, type DhcpPoolBody } from '@/lib/api'
+import { plural } from '@/lib/format'
 import type { DhcpPool } from '@/types'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormField, inputClass } from '@/components/FormField'
 import { Panel } from '@/components/Panel'
-
-function plural(count: number, one: string, many: string): string {
-  return `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`
-}
 
 export function NextFreePanel({ addresses, free, prefix, onPick }: { addresses: string[]; free: number; prefix: number; onPick: (ip: string) => void }) {
   return (

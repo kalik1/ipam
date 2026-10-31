@@ -98,7 +98,8 @@ export class SubnetsService {
     }
     const existing = await this.subnetRepo.findOne({ where: { cidr: dto.cidr } });
     if (existing) throw new ConflictException('CIDR already exists');
-    const vlanId = await this.resolveVlanId(dto.vlanId);
+    const vlanId =
+      dto.vlanId === undefined ? null : (await this.findVlan(dto.vlanId)).id;
     const subnet = this.subnetRepo.create({
       cidr: dto.cidr,
       name: dto.name,
@@ -320,11 +321,6 @@ export class SubnetsService {
       where: { id },
       relations: { gateways: true, dhcpPools: true, vlan: true },
     });
-  }
-
-  private async resolveVlanId(vlanId?: number): Promise<number | null> {
-    if (vlanId === undefined) return null;
-    return (await this.findVlan(vlanId)).id;
   }
 
   private async findVlan(id: number): Promise<Vlan> {

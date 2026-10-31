@@ -165,9 +165,9 @@ function scanReport(subnets: { subnetId: number | null; deviceIds: number[] }[],
 function animated(state: LiveState) {
   return {
     sweeps: activeKeys(state, state.sweeps),
-    flashes: activeKeys(state, state.flashes),
-    plugs: activeKeys(state, state.plugs),
-    fades: activeKeys(state, state.fades),
+    flashes: activeKeys(state, state.seenPulses),
+    plugs: activeKeys(state, state.createdPulses),
+    fades: activeKeys(state, state.offlinePulses),
   }
 }
 
@@ -204,7 +204,7 @@ describe('live animation state', () => {
 
     expect(animated(state)).toEqual({ sweeps: [1, 3], flashes: [7, 12, 40, 100], plugs: [], fades: [] })
     expect(pulseClass(state.sweeps[1], state.settled, 'pass')).toBe('pass-a')
-    expect(pulseClass(state.flashes[7], state.settled, 'seen')).toBe('seen-a')
+    expect(pulseClass(state.seenPulses[7], state.settled, 'seen')).toBe('seen-a')
   })
 
   it('restarts the pass of a subnet on its next scan report, even with other events in between', () => {
@@ -220,8 +220,8 @@ describe('live animation state', () => {
 
     expect(pulseClass(second.sweeps[1], second.settled, 'pass')).toBe('pass-b')
     expect(pulseClass(second.sweeps[2], second.settled, 'pass')).toBe('pass-a')
-    expect(pulseClass(second.flashes[7], second.settled, 'seen')).toBe('seen-a')
-    expect(pulseClass(second.flashes[8], second.settled, 'seen')).toBe('seen-a')
+    expect(pulseClass(second.seenPulses[7], second.settled, 'seen')).toBe('seen-a')
+    expect(pulseClass(second.seenPulses[8], second.settled, 'seen')).toBe('seen-a')
   })
 
   it('plugs in a created device and fades exactly the devices that went offline', () => {
@@ -253,7 +253,7 @@ describe('live animation state', () => {
     ])
 
     expect(pulseClass(state.sweeps[1], state.settled, 'pass')).toBe('pass-b')
-    expect(pulseClass(state.flashes[7], state.settled, 'seen')).toBe('seen-b')
+    expect(pulseClass(state.seenPulses[7], state.settled, 'seen')).toBe('seen-b')
   })
 })
 
@@ -353,12 +353,26 @@ describe('pending commands', () => {
 
   it('gives the scan report of a result its single pass once no command is pending', () => {
     const state = run([sent('c1'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
-    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
 
     expect(sweepClass(state, 1)).toBe('pass-a')
     expect(sweepClass(state, 2)).toBeUndefined()
-    expect(sweepClass(stillScanning, 1)).toBe('loop')
+  })
+
+  it('runs the single pass of a scan report instead of the loop while other commands are pending, so the seen LEDs follow it', () => {
+    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+
+    expect(sweepClass(stillScanning, 1)).toBe('pass-a')
     expect(devicePulseClass(stillScanning, 7)).toBe('seen-a')
+    expect(sweepClass(stillScanning, 2)).toBe('loop')
+  })
+
+  it('resumes the loop on a subnet once its pass settled, while commands are still pending', () => {
+    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+    const settled = run([{ kind: 'settle', seq: stillScanning.received }], stillScanning)
+    const done = run([result('c2')], settled)
+
+    expect(sweepClass(settled, 1)).toBe('loop')
+    expect(sweepClass(done, 1)).toBeUndefined()
   })
 
   it('stops waiting for the commands of an agent that disconnected', () => {

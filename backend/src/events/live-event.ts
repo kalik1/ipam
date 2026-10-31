@@ -30,3 +30,16 @@ export type LiveEventType = keyof LiveEventData;
 export type LiveEvent = {
   [K in LiveEventType]: { type: K; data: LiveEventData[K] };
 }[LiveEventType];
+
+export interface CreatedDevice {
+  id: number;
+  ip: string;
+  subnetId: number | null;
+}
+
+export function deviceCreatedEvent(device: CreatedDevice): LiveEvent {
+  return {
+    type: 'device.created',
+    data: { deviceId: device.id, ip: device.ip, subnetId: device.subnetId },
+  };
+}

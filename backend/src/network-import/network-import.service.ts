@@ -8,6 +8,7 @@ import { Gateway } from '../entities/gateway.entity';
 import { Subnet } from '../entities/subnet.entity';
 import { Vlan } from '../entities/vlan.entity';
 import { EventsService } from '../events/events.service';
+import { deviceCreatedEvent } from '../events/live-event';
 
 export interface ImportVlan {
   vlanId: number;
@@ -215,14 +216,7 @@ export class NetworkImportService {
           }),
         );
         result.reservedDevicesAdded += 1;
-        this.events.publish({
-          type: 'device.created',
-          data: {
-            deviceId: created.id,
-            ip: created.ip,
-            subnetId: created.subnetId,
-          },
-        });
+        this.events.publish(deviceCreatedEvent(created));
       }
     }
     for (const entry of dhcpRanges) {

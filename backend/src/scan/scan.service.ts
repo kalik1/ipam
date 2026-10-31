@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { hashApiKey } from '../lib/api-key';
 import { isValidCidr, cidrContains, isValidIp } from '../lib/cidr';
 import { Device } from '../entities/device.entity';
@@ -12,7 +12,11 @@ import { Subnet } from '../entities/subnet.entity';
 import { ApiKey } from '../entities/api-key.entity';
 import { ScanReport } from '../entities/scan-report.entity';
 import { EventsService } from '../events/events.service';
-import { LiveEventData, ScanReportSubnet } from '../events/live-event';
+import {
+  LiveEventData,
+  ScanReportSubnet,
+  deviceCreatedEvent,
+} from '../events/live-event';
 import { ScanDeviceDto, ScanReportDto } from './scan.dto';
 
 export interface ScanResult {
@@ -22,7 +26,7 @@ export interface ScanResult {
   reportId: number;
 }
 
-export interface TouchedDevice {
+export interface SeenDevice {
   id: number;
   ip: string;
   subnetId: number | null;
@@ -32,7 +36,12 @@ export interface TouchedDevice {
 export interface UpsertResult {
   created: number;
   updated: number;
-  devices: TouchedDevice[];
+  devices: SeenDevice[];
+}
+
+export interface ReportFilter {
+  subnetId?: number;
+  since?: Date;
 }
 
 type ScanOrigin = Omit<LiveEventData['scan.report'], 'subnets'>;
@@ -75,11 +84,15 @@ export class ScanService {
     await this.apiKeyRepo.save(keyRecord);
 
     const counts = await this.upsertDevices(devices);
+    const subnets = groupBySubnet(counts.devices);
     const report = this.reportRepo.create({
       agent,
       platform: platform ?? '',
       deviceCount: devices.length,
       receivedAt: new Date(),
+      subnetIds: subnets.flatMap(({ subnetId }) =>
+        subnetId === null ? [] : [subnetId],
+      ),
     });
     const saved = await this.reportRepo.save(report);
     this.publishScan(
@@ -90,6 +103,7 @@ export class ScanService {
         reportId: saved.id,
       },
       counts.devices,
+      subnets,
     );
     return {
       received: devices.length,
@@ -107,6 +121,7 @@ export class ScanService {
     this.publishScan(
       { agent, source: 'connector', receivedAt: new Date().toISOString() },
       result.devices,
+      groupBySubnet(result.devices),
     );
     return result;
   }
@@ -116,7 +131,7 @@ export class ScanService {
     const now = new Date();
     let created = 0;
     let updated = 0;
-    const touched = new Map<number, TouchedDevice>();
+    const seen = new Map<number, SeenDevice>();
     for (const entry of devices) {
       if (!isValidIp(entry.ip)) {
         throw new BadRequestException(`Invalid IP address: ${entry.ip}`);
@@ -129,8 +144,8 @@ export class ScanService {
         existing.status = 'online';
         existing.lastSeen = now;
         const saved = await this.deviceRepo.save(existing);
-        if (!touched.has(saved.id)) {
-          touched.set(saved.id, this.touchedDevice(saved, false));
+        if (!seen.has(saved.id)) {
+          seen.set(saved.id, this.seenDevice(saved, false));
         }
         updated += 1;
       } else {
@@ -145,41 +160,52 @@ export class ScanService {
           notes: '',
         });
         const saved = await this.deviceRepo.save(device);
-        touched.set(saved.id, this.touchedDevice(saved, true));
+        seen.set(saved.id, this.seenDevice(saved, true));
         created += 1;
       }
     }
-    return { created, updated, devices: [...touched.values()] };
+    return { created, updated, devices: [...seen.values()] };
   }
 
-  async listReports(limit?: number): Promise<ScanReport[]> {
+  async listReports(
+    limit?: number,
+    filter: ReportFilter = {},
+  ): Promise<ScanReport[]> {
     const fallback = 50;
     const value =
       limit === undefined || !Number.isFinite(limit)
         ? fallback
         : Math.trunc(limit);
     const clamped = Math.min(200, Math.max(1, value));
-    return this.reportRepo.find({
-      order: { receivedAt: 'DESC', id: 'DESC' },
-      take: clamped,
-    });
+    const where = filter.since
+      ? { receivedAt: MoreThanOrEqual(filter.since) }
+      : {};
+    const order = { receivedAt: 'DESC', id: 'DESC' } as const;
+    const { subnetId } = filter;
+    if (subnetId === undefined) {
+      return this.reportRepo.find({ where, order, take: clamped });
+    }
+    const reports = await this.reportRepo.find({ where, order });
+    return reports
+      .filter((report) => report.subnetIds.includes(subnetId))
+      .slice(0, clamped);
   }
 
-  private touchedDevice(device: Device, created: boolean): TouchedDevice {
+  private seenDevice(device: Device, created: boolean): SeenDevice {
     return { id: device.id, ip: device.ip, subnetId: device.subnetId, created };
   }
 
-  private publishScan(origin: ScanOrigin, devices: TouchedDevice[]): void {
+  private publishScan(
+    origin: ScanOrigin,
+    devices: SeenDevice[],
+    subnets: ScanReportSubnet[],
+  ): void {
     for (const device of devices) {
-      if (!device.created) continue;
-      this.events.publish({
-        type: 'device.created',
-        data: { deviceId: device.id, ip: device.ip, subnetId: device.subnetId },
-      });
+      if (device.created) this.events.publish(deviceCreatedEvent(device));
     }
     this.events.publish({
       type: 'scan.report',
-      data: { ...origin, subnets: groupBySubnet(devices) },
+      data: { ...origin, subnets },
     });
   }
 
@@ -193,7 +219,7 @@ export class ScanService {
   }
 }
 
-function groupBySubnet(devices: TouchedDevice[]): ScanReportSubnet[] {
+function groupBySubnet(devices: SeenDevice[]): ScanReportSubnet[] {
   const groups = new Map<number | null, number[]>();
   for (const device of devices) {
     const ids = groups.get(device.subnetId) ?? [];
