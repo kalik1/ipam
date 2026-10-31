@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { LiveEvent } from './liveEvents'
 import type { ScanReportData } from './liveState'
-import { affectsSubnet, subnetActivity, type ActivityDevice } from './subnetLive'
+import { affectsSubnet, subnetActivity, type ActivityDevice, type StoredReport } from './subnetLive'
+
+function report(overrides: Partial<Omit<StoredReport, 'receivedAt'>> & { receivedAt: Date }): StoredReport {
+  return { id: 1, agent: 'hq-scanner', deviceCount: 1, subnetIds: [1], ...overrides, receivedAt: overrides.receivedAt.toISOString() }
+}
 
 function scan(subnets: ScanReportData['subnets'], receivedAt: Date, overrides: Partial<ScanReportData> = {}): ScanReportData {
   return { agent: 'hq-scanner', source: 'report', receivedAt: receivedAt.toISOString(), reportId: 1, subnets, ...overrides }
@@ -68,6 +72,41 @@ describe('subnetActivity', () => {
       new Date(2026, 9, 31, 12, 3, 12).toISOString(),
       new Date(2026, 9, 31, 11, 29, 40).toISOString(),
     ])
+  })
+
+  it('keeps the stored scan reports of today that reached this subnet, so a reload loses none', () => {
+    const entries = subnetActivity({
+      subnetId: 1,
+      prefix: 24,
+      now: NOW,
+      scans: [],
+      reports: [
+        report({ id: 8, deviceCount: 6, subnetIds: [2, 1, 3], receivedAt: new Date(2026, 9, 31, 12, 10, 0) }),
+        report({ id: 7, deviceCount: 3, subnetIds: [1], receivedAt: new Date(2026, 9, 31, 12, 4, 31) }),
+        report({ id: 5, deviceCount: 1, subnetIds: [2], receivedAt: new Date(2026, 9, 31, 12, 0, 0) }),
+        report({ id: 4, deviceCount: 2, subnetIds: [1], receivedAt: YESTERDAY }),
+      ],
+      devices: [],
+    })
+
+    expect(entries.map(({ kind, who, what, ip }) => ({ kind, who, what, ip }))).toEqual([
+      { kind: 'scan', who: 'hq-scanner', what: 'reported 6 devices across 3 subnets', ip: null },
+      { kind: 'scan', who: 'hq-scanner', what: 'reported 3 devices here', ip: null },
+    ])
+  })
+
+  it('lists a report that arrived live and is also stored once, with the devices seen in this subnet', () => {
+    const at = new Date(2026, 9, 31, 12, 4, 31)
+    const entries = subnetActivity({
+      subnetId: 1,
+      prefix: 24,
+      now: NOW,
+      scans: [scan([{ subnetId: 1, deviceIds: [1, 2] }, { subnetId: 2, deviceIds: [8] }], at, { reportId: 7 })],
+      reports: [report({ id: 7, deviceCount: 3, subnetIds: [1, 2], receivedAt: at })],
+      devices: [],
+    })
+
+    expect(entries.map((entry) => entry.what)).toEqual(['reported 2 devices here'])
   })
 
   it('names connector scans and counts one device in the singular', () => {

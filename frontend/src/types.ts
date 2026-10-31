@@ -107,6 +107,7 @@ export interface ScanReport {
   platform: string
   deviceCount: number
   receivedAt: string
+  subnetIds: number[]
 }
 
 export interface SubnetUtilization {

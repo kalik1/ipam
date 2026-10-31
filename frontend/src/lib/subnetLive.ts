@@ -3,7 +3,7 @@ import { plural } from './format'
 import type { LiveEvent } from './liveEvents'
 import type { ScanReportData } from './liveState'
 import { deviceName } from './portGlyph'
-import type { Device } from '../types'
+import type { Device, ScanReport } from '../types'
 
 export type ActivityKind = 'scan' | 'new' | 'offline'
 
@@ -18,11 +18,14 @@ export interface ActivityEntry {
 
 export type ActivityDevice = Pick<Device, 'id' | 'ip' | 'hostname' | 'status' | 'lastSeen' | 'createdAt'>
 
+export type StoredReport = Pick<ScanReport, 'id' | 'agent' | 'deviceCount' | 'receivedAt' | 'subnetIds'>
+
 export interface ActivityInput {
   subnetId: number
   prefix: number
   devices: readonly ActivityDevice[]
   scans: readonly ScanReportData[]
+  reports?: readonly StoredReport[]
   now: Date
   limit?: number
 }
@@ -40,10 +43,6 @@ export function affectsSubnet(event: LiveEvent, subnetId: number, deviceIds: rea
     default:
       return false
   }
-}
-
-function startOfDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
 }
 
 function hostLabel(ip: string, prefix: number): string {
@@ -69,6 +68,29 @@ function scanEntries(scans: readonly ScanReportData[], subnetId: number): Activi
   })
 }
 
+function storedReportText(report: StoredReport): string {
+  const devices = plural(report.deviceCount, 'device')
+  if (report.subnetIds.length > 1) return `reported ${devices} across ${report.subnetIds.length} subnets`
+  return `reported ${devices} here`
+}
+
+function reportEntries(reports: readonly StoredReport[], scans: readonly ScanReportData[], subnetId: number): ActivityEntry[] {
+  const live = new Set(scans.flatMap((scan) => (scan.reportId === undefined ? [] : [scan.reportId])))
+  return reports.flatMap((report) => {
+    if (live.has(report.id) || !report.subnetIds.includes(subnetId)) return []
+    return [
+      {
+        key: `scan-${report.agent}-${report.id}`,
+        kind: 'scan' as const,
+        at: report.receivedAt,
+        who: report.agent,
+        what: storedReportText(report),
+        ip: null,
+      },
+    ]
+  })
+}
+
 function deviceEntries(devices: readonly ActivityDevice[], prefix: number): ActivityEntry[] {
   return devices.flatMap((device) => {
     const who = deviceName(device)
@@ -80,9 +102,13 @@ function deviceEntries(devices: readonly ActivityDevice[], prefix: number): Acti
   })
 }
 
-export function subnetActivity({ subnetId, prefix, devices, scans, now, limit = ACTIVITY_LIMIT }: ActivityInput): ActivityEntry[] {
-  const since = startOfDay(now)
-  return [...scanEntries(scans, subnetId), ...deviceEntries(devices, prefix)]
+export function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+export function subnetActivity({ subnetId, prefix, devices, scans, reports = [], now, limit = ACTIVITY_LIMIT }: ActivityInput): ActivityEntry[] {
+  const since = startOfDay(now).getTime()
+  return [...scanEntries(scans, subnetId), ...reportEntries(reports, scans, subnetId), ...deviceEntries(devices, prefix)]
     .map((entry) => ({ entry, time: Date.parse(entry.at) }))
     .filter(({ time }) => time >= since)
     .sort((a, b) => b.time - a.time || a.entry.key.localeCompare(b.entry.key))

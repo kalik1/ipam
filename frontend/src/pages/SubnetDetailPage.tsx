@@ -4,13 +4,14 @@ import axios from 'axios'
 import api, { createDhcpPool, deleteDhcpPool, getErrorMessage, type DhcpPoolBody } from '@/lib/api'
 import { buildAddressMap, type AddressSlot } from '@/lib/addressMap'
 import { useLive } from '@/lib/live'
+import type { LiveEvent } from '@/lib/liveEvents'
 import { devicePulseClass, pulseClass, sweepClass } from '@/lib/liveState'
-import type { Loadable } from '@/lib/loadable'
-import { affectsSubnet, subnetActivity } from '@/lib/subnetLive'
+import { useLoadable, type Loadable } from '@/lib/loadable'
+import { affectsSubnet, startOfDay, subnetActivity } from '@/lib/subnetLive'
 import { selectedAddress, type DeviceFilter } from '@/lib/subnetDevices'
 import { useLiveRefetch } from '@/lib/useLiveRefetch'
 import { vlanColor } from '@/lib/vlan'
-import type { Device, DhcpPool, SubnetDetail } from '@/types'
+import type { Device, DhcpPool, ScanReport, SubnetDetail } from '@/types'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ActivityPanel } from '@/components/subnet/ActivityPanel'
 import { EmptyState } from '@/components/EmptyState'
@@ -22,6 +23,7 @@ import { DhcpPoolPanel, NextFreePanel } from '@/components/subnet/SidePanels'
 import { SubnetHeader } from '@/components/subnet/SubnetHeader'
 
 const NEXT_FREE_LIMIT = 12
+const TODAY_REPORTS_LIMIT = 100
 const LED_BOOT_MS = 600 + 256 * 5 + 100
 
 type SubnetState = Loadable<SubnetDetail> | { status: 'not-found' }
@@ -69,6 +71,23 @@ function useSubnet(id: string | undefined) {
   return { state, booting, update, refresh }
 }
 
+const NO_REPORTS: ScanReport[] = []
+
+function storesReportFor(subnetId: number) {
+  return (event: LiveEvent) =>
+    event.type === 'scan.report' && event.data.source === 'report' && event.data.subnets.some((group) => group.subnetId === subnetId)
+}
+
+function useTodayReports(subnetId: number): ScanReport[] {
+  const fetchReports = useCallback(async () => {
+    const params = { subnetId, since: startOfDay(new Date()).toISOString(), limit: TODAY_REPORTS_LIMIT }
+    return (await api.get<ScanReport[]>('/scan/reports', { params })).data
+  }, [subnetId])
+  const { state, refetch } = useLoadable(fetchReports, 'Failed to load the scan reports')
+  useLiveRefetch(storesReportFor(subnetId), refetch)
+  return state.status === 'ready' ? state.data : NO_REPORTS
+}
+
 export default function SubnetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { state, booting, update, refresh } = useSubnet(id)
@@ -112,9 +131,10 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const nextFree = useMemo(() => map.nextFree(NEXT_FREE_LIMIT), [map])
   const sweep = live.sweeps[subnet.id]
   const devicePulse = useCallback((deviceId: number) => devicePulseClass(live, deviceId), [live])
+  const reports = useTodayReports(subnet.id)
   const activity = useMemo(
-    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, now: new Date() }),
-    [subnet, map.prefix, live.scans],
+    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, reports, now: new Date() }),
+    [subnet, map.prefix, live.scans, reports],
   )
 
   const select = useCallback(

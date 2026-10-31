@@ -69,8 +69,8 @@ describe('wentOffline', () => {
 
 describe('latestScans', () => {
   const reports: ScanReport[] = [
-    { id: 5, agent: 'probe', platform: 'linux', deviceCount: 6, receivedAt: '2026-10-31T10:00:00.000Z' },
-    { id: 4, agent: 'branch', platform: 'windows', deviceCount: 2, receivedAt: '2026-10-31T09:00:00.000Z' },
+    { id: 5, agent: 'probe', platform: 'linux', deviceCount: 6, receivedAt: '2026-10-31T10:00:00.000Z', subnetIds: [1] },
+    { id: 4, agent: 'branch', platform: 'windows', deviceCount: 2, receivedAt: '2026-10-31T09:00:00.000Z', subnetIds: [] },
   ]
 
   function scan(receivedAt: string, source: ScanReportData['source'], reportId?: number): ScanReportData {

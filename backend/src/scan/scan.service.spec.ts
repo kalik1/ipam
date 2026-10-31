@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { ApiKey } from '../entities/api-key.entity';
 import { Device } from '../entities/device.entity';
 import { EventsService } from '../events/events.service';
@@ -227,6 +227,75 @@ describe('ScanService', () => {
     expect(find).toHaveBeenCalledWith(
       expect.objectContaining({ take: 50 }),
     );
+  });
+
+  it('stores on the report the subnets its devices were grouped under, without the devices outside every subnet', async () => {
+    deviceRepo.findOne.mockImplementation(
+      async ({ where }: { where: { ip: string } }) =>
+        where.ip === '172.31.0.9'
+          ? makeDevice({ id: 8, ip: '172.31.0.9', subnetId: null })
+          : null,
+    );
+
+    await service.receive(validKey, {
+      agent: 'agent-1',
+      devices: [
+        { ip: '10.0.0.5' },
+        { ip: '192.168.1.50' },
+        { ip: '10.0.0.6' },
+        { ip: '172.31.0.9' },
+      ],
+    });
+
+    expect(reportRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceCount: 4, subnetIds: [2, 1] }),
+    );
+  });
+
+  it('stores no subnets on a report without devices', async () => {
+    await service.receive(validKey, { agent: 'agent-1', devices: [] });
+
+    expect(reportRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ subnetIds: [] }),
+    );
+  });
+
+  describe('listing reports of one subnet', () => {
+    const report = (id: number, subnetIds: number[]) =>
+      ({ id, agent: 'agent-1', platform: '', deviceCount: 1, receivedAt: new Date(), subnetIds }) as ScanReport;
+
+    it('keeps only the reports that reached the subnet, up to the limit', async () => {
+      const find = jest.fn(async () => [
+        report(5, [1, 2]),
+        report(4, [2]),
+        report(3, [1]),
+        report(2, []),
+        report(1, [1]),
+      ]);
+      reportRepo.find = find;
+
+      const reports = await service.listReports(2, { subnetId: 1 });
+
+      expect(reports.map((entry) => entry.id)).toEqual([5, 3]);
+      expect(find).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.anything() }),
+      );
+    });
+
+    it('asks only for the reports received since a given time', async () => {
+      const find = jest.fn(async () => []);
+      reportRepo.find = find;
+      const since = new Date('2026-10-31T00:00:00.000Z');
+
+      await service.listReports(undefined, { since });
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { receivedAt: MoreThanOrEqual(since) },
+          take: 50,
+        }),
+      );
+    });
   });
 
   describe('live events', () => {
