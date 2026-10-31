@@ -3,6 +3,7 @@
 @import "./styles/shell.css";
 @import "./styles/address-map.css";
 @import "./styles/subnet-page.css";
+@import "./styles/search.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));
