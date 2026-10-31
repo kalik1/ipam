@@ -1,11 +1,10 @@
+import { summaryStats, type DeviceTotals } from '@/lib/dashboard'
 import { plural } from '@/lib/format'
-import { LOW_FREE_RATIO, type Rack } from '@/lib/rack'
+import type { Rack } from '@/lib/rack'
 import { AllocationSegments } from '@/components/addressMap/AllocationBar'
 
-const LOW_PERCENT = LOW_FREE_RATIO * 100
-
-export function NetworkSummary({ rack, agents }: { rack: Rack; agents: number }) {
-  const { counters, freePercent, low, subnets, vlans } = rack.summary
+export function NetworkSummary({ rack, devices, agents }: { rack: Rack; devices: DeviceTotals; agents: number }) {
+  const { counters, subnets, vlans } = rack.summary
   const usable = counters.usable.toLocaleString('en-US')
   return (
     <section className="panel summary hud brushed" aria-label="Network summary">
@@ -23,38 +22,15 @@ export function NetworkSummary({ rack, agents }: { rack: Rack; agents: number })
         </p>
       </div>
       <dl className="stats">
-        <div>
-          <dt>Devices</dt>
-          <dd>
-            {counters.occupied}
-            <small>{counters.occupiedOnline} online</small>
-          </dd>
-        </div>
-        <div>
-          <dt>Offline now</dt>
-          <dd>
-            {counters.occupiedOffline}
-            <small>last seen over 5 min ago</small>
-          </dd>
-        </div>
-        <div>
-          <dt>Usable addresses</dt>
-          <dd>{usable}</dd>
-        </div>
-        <div>
-          <dt>Free addresses</dt>
-          <dd>
-            {counters.free.toLocaleString('en-US')}
-            <small>{freePercent}% of usable</small>
-          </dd>
-        </div>
-        <div className={low > 0 ? 'warn' : undefined}>
-          <dt>Subnets low on free</dt>
-          <dd>
-            {low}
-            <small>under {LOW_PERCENT}% free</small>
-          </dd>
-        </div>
+        {summaryStats(rack.summary, devices).map((stat) => (
+          <div key={stat.label} className={stat.warn ? 'warn' : undefined}>
+            <dt>{stat.label}</dt>
+            <dd>
+              {stat.value}
+              {stat.note && <small>{stat.note}</small>}
+            </dd>
+          </div>
+        ))}
       </dl>
       <div className="alloc">
         <AllocationSegments counters={counters} />

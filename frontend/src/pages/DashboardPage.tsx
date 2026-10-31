@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const discovery = useDiscovery()
 
   const branches = network.status === 'ready' ? network.data.branches : null
+  const devices = network.status === 'ready' ? network.data.devices : null
   const rack = useMemo(() => (branches ? buildRack(branches) : null), [branches])
   const offline = useMemo(
     () => (network.status === 'ready' && rack ? wentOffline(network.data.offline, rack.rows, OFFLINE_LIMIT) : null),
@@ -40,9 +41,9 @@ export default function DashboardPage() {
     <div className="dashboard">
       {network.status === 'error' && <p className="alert">{network.message}</p>}
       {reports.status === 'error' && <p className="alert">{reports.message}</p>}
-      {rack ? (
+      {rack && devices ? (
         <>
-          <NetworkSummary rack={rack} agents={connected} />
+          <NetworkSummary rack={rack} devices={devices} agents={connected} />
           <RackPanel rows={rack.rows} live={live} fiberClass={pulseClass(live.anySweep, live.settled, 'rx')} />
         </>
       ) : (

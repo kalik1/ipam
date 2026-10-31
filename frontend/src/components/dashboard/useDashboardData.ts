@@ -1,28 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getAgentAssignments, getErrorMessage } from '@/lib/api'
 import { agentRows, withHeartbeat, type AgentRow } from '@/lib/agentRows'
+import type { DeviceTotals } from '@/lib/dashboard'
 import type { CommandOutcome } from '@/lib/discovery'
 import { useLive, useLiveEvent } from '@/lib/live'
 import type { LiveEvent } from '@/lib/liveEvents'
 import { useLoadable, type Loadable } from '@/lib/loadable'
 import { buildTopologyTree, type TopologyBranch } from '@/lib/topology'
 import { useLiveRefetch } from '@/lib/useLiveRefetch'
-import type { Agent, AgentAssignment, Device, ScanReport, Subnet, Topology } from '@/types'
+import type { Agent, AgentAssignment, Device, ScanReport, Subnet, Summary, Topology } from '@/types'
 
 const OUTCOMES_LIMIT = 50
 
 export interface NetworkData {
   branches: TopologyBranch[]
   offline: Device[]
+  devices: DeviceTotals
 }
 
 async function fetchNetwork(): Promise<NetworkData> {
-  const [topology, subnets, offline] = await Promise.all([
+  const [topology, subnets, offline, summary] = await Promise.all([
     api.get<Topology>('/topology'),
     api.get<Subnet[]>('/subnets'),
     api.get<Device[]>('/devices', { params: { status: 'offline' } }),
+    api.get<Summary>('/summary'),
   ])
-  return { branches: buildTopologyTree(topology.data, subnets.data), offline: offline.data }
+  return { branches: buildTopologyTree(topology.data, subnets.data), offline: offline.data, devices: summary.data }
 }
 
 function changesNetwork(event: LiveEvent): boolean {
