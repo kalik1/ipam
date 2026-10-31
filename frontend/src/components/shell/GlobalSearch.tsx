@@ -72,7 +72,7 @@ export function GlobalSearch() {
 
   const matches = useMemo(() => matchDevices(devices ?? [], query), [devices, query])
   const shown = matches.slice(0, MAX_RESULTS)
-  const activeIndex = Math.min(active, shown.length - 1)
+  const activeIndex = shown.length ? Math.max(0, Math.min(active, shown.length - 1)) : -1
   const open = focused && query.trim() !== ''
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export function GlobalSearch() {
           ref={inputRef}
           type="search"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={listed}
           aria-controls={listed ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={listed && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
