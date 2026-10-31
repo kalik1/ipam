@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { hashApiKey } from '../lib/api-key';
 import { ApiKey } from '../entities/api-key.entity';
+import { EventsService } from '../events/events.service';
 import { NetworkImportService } from '../network-import/network-import.service';
 import { ScanService } from '../scan/scan.service';
 import {
@@ -71,6 +72,7 @@ export class AgentWsService
     private readonly apiKeyRepo: Repository<ApiKey>,
     private readonly scanService: ScanService,
     private readonly networkImport: NetworkImportService,
+    private readonly events: EventsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -151,6 +153,7 @@ export class AgentWsService
     for (const [name, session] of this.sessions) {
       if (now - session.lastPingAt.getTime() > PING_TIMEOUT_MS) {
         this.sessions.delete(name);
+        this.publishDisconnected(name);
         session.socket.close();
       }
     }
@@ -173,6 +176,10 @@ export class AgentWsService
     if (message.type === 'ping') {
       session.lastPingAt = new Date();
       this.sendJson(socket, { type: 'pong' });
+      this.events.publish({
+        type: 'agent.heartbeat',
+        data: { agent: session.name, at: session.lastPingAt.toISOString() },
+      });
       return;
     }
     if (message.type === 'report') {
@@ -197,7 +204,6 @@ export class AgentWsService
       return;
     }
     const previous = this.sessions.get(message.agent);
-    if (previous && previous.socket !== socket) previous.socket.close();
     const now = new Date();
     this.sessions.set(message.agent, {
       name: message.agent,
@@ -208,7 +214,12 @@ export class AgentWsService
       socket,
       keyRecord,
     });
+    if (previous && previous.socket !== socket) previous.socket.close();
     this.sendJson(socket, { type: 'hello_ack', ok: true });
+    this.events.publish({
+      type: 'agent.connected',
+      data: { agent: message.agent, platform: message.platform },
+    });
   }
 
   private async handleReport(
@@ -271,8 +282,14 @@ export class AgentWsService
 
   private handleDisconnect(socket: WebSocket): void {
     for (const [name, session] of this.sessions) {
-      if (session.socket === socket) this.sessions.delete(name);
+      if (session.socket !== socket) continue;
+      this.sessions.delete(name);
+      this.publishDisconnected(name);
     }
+  }
+
+  private publishDisconnected(agent: string): void {
+    this.events.publish({ type: 'agent.disconnected', data: { agent } });
   }
 
   private sessionForSocket(socket: WebSocket): AgentSession | undefined {
