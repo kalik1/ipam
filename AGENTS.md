@@ -52,7 +52,7 @@ Run build and tests in every subproject you touch. All must pass before you are 
 - Frontend type: Archivo Variable for UI, Martian Mono Variable (`.mono`) for IPs, MACs and numbers, bundled from `@fontsource-variable/*/wdth.css` (no font CDN); condense with `font-stretch`, base 13px, sentence case.
 - Frontend building blocks: reuse the base components in `frontend/src/components/` (`Button`, `Panel`/`PanelHeader`, `Selector`, `Table`, `FormField`, `Modal`, `ConfirmDialog`, `EmptyState`, `Badge`, `StatusLed`, `VlanChip`/`Cable`); page-level buttons go in the top bar through `<PageActions>`. Component CSS lives in `frontend/src/styles/`, one file per feature imported from `index.css`.
 - VLAN cable colors come from `vlanColor(tag)` and `vlanLabel(vlan)` in `frontend/src/lib/vlan.ts`, keyed by the 802.1Q tag (`Vlan.vlanId`); `Subnet.vlanId` is the VLAN row id, so pass `subnet.vlan?.vlanId`.
-- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline) or lasts only while a real state is in progress (a command still `sent`). The shell and base components are static: hover and focus change color instantly, with a visible focus outline. See `docs/adr/0001-animations-driven-by-real-events.md`.
+- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline), by the page's data arriving from the API (one shot: the address map LEDs light up once on the first load, never again on a refetch, a live update or a block switch), or lasts only while a real state is in progress (a command still `sent`). The shell and base components are static: hover and focus change color instantly, with a visible focus outline. See `docs/adr/0001-animations-driven-by-real-events.md`.
 
 ## Testing instructions
 
@@ -65,13 +65,14 @@ Run build and tests in every subproject you touch. All must pass before you are 
 
 - API keys: only the sha256 hash is stored (`ApiKey.keyHash`); the full key is returned exactly once, at creation. Never log full keys except the single seed-time log.
 - JWT secret comes from `JWT_SECRET` (default `dev-secret-change-me`); set a real value before exposing the app.
-- The global `JwtAuthGuard` protects every route except those marked `@Public()` (`/auth/login`, `POST /scan/reports`), including the `GET /events` stream. Keep that list minimal.
+- The global `JwtAuthGuard` protects every route, the `GET /events` stream included. Only the routes marked `@Public()` skip it: `/auth/login` and `POST /scan/reports`. Keep that list minimal.
 - The DB file `backend/data/ipam.sqlite` contains the demo credentials — treat it as local-only.
 
 ## Environment variables (backend)
 
 | Var | Default | Purpose |
 |---|---|---|
+| `PORT` | `3000` | HTTP port of the API and of the agent WebSocket (`/ws/agent`) |
 | `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
 | `PG_HOST` / `PG_PORT` | `localhost` / `5432` | Postgres connection |
 | `PG_USER` / `PG_PASS` / `PG_DB` | `postgres` / `''` / `ipam` | Postgres credentials |

@@ -107,6 +107,8 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
   const slot = map.slot(ip)
   const device = slot?.device ?? subnet.devices.find((candidate) => candidate.ip === ip) ?? null
   const blockIndex = blockChoice?.ip === ip ? blockChoice.index : (map.blockOf(ip)?.index ?? 0)
+  const [bootBlock, setBootBlock] = useState<number | null>(blockIndex)
+  if (bootBlock !== null && bootBlock !== blockIndex) setBootBlock(null)
   const nextFree = useMemo(() => map.nextFree(NEXT_FREE_LIMIT), [map])
   const sweep = live.sweeps[subnet.id]
   const devicePulse = useCallback((deviceId: number) => devicePulseClass(live, deviceId), [live])
@@ -182,7 +184,7 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
           cable={cable}
           selectedIp={ip}
           hover={hover}
-          booting={booting}
+          booting={booting && bootBlock === blockIndex}
           passClass={sweepClass(live, subnet.id)}
           fiberClass={pulseClass(sweep, live.settled, 'rx')}
           devicePulse={devicePulse}
