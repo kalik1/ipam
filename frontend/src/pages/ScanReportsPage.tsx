@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import api, { getErrorMessage } from '@/lib/api'
-import { timeAgo } from '@/lib/format'
+import { formatTimestamp, timeAgo } from '@/lib/format'
+import { useLiveEvent } from '@/lib/live'
 import type { ScanReport } from '@/types'
+import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
+import { Panel, PanelHeader } from '@/components/Panel'
+import { Table, TableMessage } from '@/components/Table'
+import { PageActions } from '@/components/shell/PageActions'
+
+const COLUMNS = 5
 
 export default function ScanReportsPage() {
   const [reports, setReports] = useState<ScanReport[]>([])
@@ -26,58 +33,61 @@ export default function ScanReportsPage() {
     void load()
   }, [load])
 
+  useLiveEvent((event) => {
+    if (event.type === 'scan.report' && event.data.source === 'report') void load()
+  })
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-slate-400">Reports submitted by agents</p>
-        <button onClick={() => void load()} className="btn btn-secondary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
-          </svg>
+    <>
+      <PageActions>
+        <Button onClick={() => void load()} disabled={loading} aria-busy={loading}>
           Refresh
-        </button>
-      </div>
+        </Button>
+      </PageActions>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+        <p className="alert" role="alert">
+          {error}
+        </p>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-800">
+      <Panel aria-label="Scan reports">
+        <PanelHeader title="Scan reports">
+          <span className="list-count">
+            {loading && reports.length === 0 ? 'Loading' : `Latest ${reports.length} ${reports.length === 1 ? 'scan' : 'scans'} reported by agents`}
+          </span>
+        </PanelHeader>
+        <Table>
+          <thead>
             <tr>
-              <th className="th">Agent</th>
-              <th className="th">Platform</th>
-              <th className="th text-right">Devices</th>
-              <th className="th">Received at</th>
+              <th>Received</th>
+              <th>Time</th>
+              <th>Agent</th>
+              <th>Platform</th>
+              <th className="num">Devices seen</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  Loading...
-                </td>
-              </tr>
+          <tbody>
+            {loading && reports.length === 0 ? (
+              <TableMessage colSpan={COLUMNS}>Loading scan reports...</TableMessage>
             ) : reports.length === 0 ? (
-              <tr>
-                <td colSpan={4}>
-                  <EmptyState title="No scan reports" message="Reports submitted by agents will appear here" />
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>
+                <EmptyState title="No scans reported" message="Scans appear here when an agent reports the devices it has seen" />
+              </TableMessage>
             ) : (
               reports.map((report) => (
-                <tr key={report.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-medium text-slate-200">{report.agent}</td>
-                  <td className="td">{report.platform || '—'}</td>
-                  <td className="td text-right tabular-nums">{report.deviceCount}</td>
-                  <td className="td">{timeAgo(report.receivedAt)}</td>
+                <tr key={report.id}>
+                  <td className="text-fg-2">{timeAgo(report.receivedAt)}</td>
+                  <td className="mono text-fg-2">{formatTimestamp(report.receivedAt)}</td>
+                  <td className="font-semibold">{report.agent}</td>
+                  <td className="text-fg-2">{report.platform || <span className="cell-muted">Not reported</span>}</td>
+                  <td className="num mono">{report.deviceCount}</td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-      </div>
-    </div>
+        </Table>
+      </Panel>
+    </>
   )
 }

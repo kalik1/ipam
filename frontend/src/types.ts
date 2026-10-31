@@ -94,7 +94,7 @@ export interface ApiKey {
   name: string
   keyPrefix: string
   createdAt: string
-  lastUsedAt: string
+  lastUsedAt: string | null
 }
 
 export interface ApiKeyCreated extends ApiKey {
