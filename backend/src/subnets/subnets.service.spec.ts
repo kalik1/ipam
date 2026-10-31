@@ -53,6 +53,8 @@ describe('SubnetsService', () => {
   let poolSave: jest.Mock;
   let poolFind: jest.Mock;
   let poolFindOne: jest.Mock;
+  let subnetSave: jest.Mock;
+  let vlanFindOne: jest.Mock;
 
   beforeEach(async () => {
     subnetFindOne = jest.fn();
@@ -61,6 +63,8 @@ describe('SubnetsService', () => {
     poolSave = jest.fn(async (pool: DhcpPool) => pool);
     poolFind = jest.fn(async () => []);
     poolFindOne = jest.fn();
+    subnetSave = jest.fn(async (subnet: Subnet) => subnet);
+    vlanFindOne = jest.fn(async () => null);
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,14 +75,14 @@ describe('SubnetsService', () => {
             createQueryBuilder: jest.fn(),
             create: (data: Partial<Subnet>) => data,
             findOne: subnetFindOne,
-            save: jest.fn(async (subnet: Subnet) => subnet),
+            save: subnetSave,
             count: jest.fn(async () => 0),
             remove: jest.fn(async () => undefined),
           },
         },
         {
           provide: getRepositoryToken(Vlan),
-          useValue: { findOne: jest.fn(async () => null) },
+          useValue: { findOne: vlanFindOne },
         },
         {
           provide: getRepositoryToken(Device),
@@ -281,6 +285,37 @@ describe('SubnetsService', () => {
 
       expect(poolSave).toHaveBeenCalledTimes(1);
       expect(result.dhcpPools).toHaveLength(0);
+    });
+
+    it('moves the subnet to another VLAN even when the old VLAN relation is loaded', async () => {
+      const users = { id: 1, vlanId: 20, name: 'Users' } as Vlan;
+      const servers = { id: 2, vlanId: 30, name: 'Servers' } as Vlan;
+      subnetFindOne.mockResolvedValue(makeSubnet({ vlanId: 1, vlan: users }));
+      vlanFindOne.mockResolvedValue(servers);
+
+      await service.update(1, { vlanId: 2 });
+
+      expect(subnetSave).toHaveBeenCalledWith(
+        expect.objectContaining({ vlanId: 2, vlan: servers }),
+      );
+    });
+
+    it('clears the VLAN when the update sends null', async () => {
+      const users = { id: 1, vlanId: 20, name: 'Users' } as Vlan;
+      subnetFindOne.mockResolvedValue(makeSubnet({ vlanId: 1, vlan: users }));
+
+      await service.update(1, { vlanId: null });
+
+      expect(subnetSave).toHaveBeenCalledWith(
+        expect.objectContaining({ vlanId: null, vlan: null }),
+      );
+    });
+
+    it('rejects an unknown VLAN id', async () => {
+      subnetFindOne.mockResolvedValue(makeSubnet());
+      await expect(service.update(1, { vlanId: 99 })).rejects.toThrow(
+        'VLAN not found',
+      );
     });
   });
 

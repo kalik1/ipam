@@ -2,6 +2,7 @@
 @import "./styles/components.css";
 @import "./styles/shell.css";
 @import "./styles/search.css";
+@import "./styles/network-pages.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));
