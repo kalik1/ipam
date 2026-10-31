@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatClock, formatDay, timeAgo, utilizationColor } from './format'
+import { formatClock, formatDay, formatTimestamp, timeAgo, utilizationColor } from './format'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -72,6 +72,16 @@ describe('formatDay', () => {
 
   it('returns "unknown" for invalid dates', () => {
     expect(formatDay('not-a-date')).toBe('unknown')
+  })
+})
+
+describe('formatTimestamp', () => {
+  it('writes local date and time with zero padding, sortable as text', () => {
+    expect(formatTimestamp(new Date(2026, 2, 2, 9, 5, 7).toISOString())).toBe('2026-03-02 09:05:07')
+  })
+
+  it('returns "unknown" for invalid dates', () => {
+    expect(formatTimestamp('not-a-date')).toBe('unknown')
   })
 })
 
