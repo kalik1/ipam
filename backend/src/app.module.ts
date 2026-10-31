@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConnectorModule } from './connectors/connector.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { DevicesModule } from './devices/devices.module';
+import { EventsModule } from './events/events.module';
 import { ScanModule } from './scan/scan.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SeedModule } from './seed/seed.module';
@@ -58,6 +59,7 @@ import { VlansModule } from './vlans/vlans.module';
         signOptions: { expiresIn: '12h' },
       }),
     }),
+    EventsModule,
     AuthModule,
     AgentWsModule,
     ConnectorModule,

@@ -16,6 +16,11 @@ export default defineConfig({
       '/api': {
         target: process.env.IPAM_API_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (_error, _request, response) => {
+            if ('req' in response && response.headersSent && !response.writableEnded) response.end()
+          })
+        },
       },
     },
   },

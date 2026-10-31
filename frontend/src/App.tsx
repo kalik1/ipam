@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '@/lib/auth'
+import { LiveProvider } from '@/lib/live'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Layout } from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
@@ -23,7 +24,9 @@ export default function App() {
         <Route
           element={
             <ProtectedRoute>
-              <Layout />
+              <LiveProvider>
+                <Layout />
+              </LiveProvider>
             </ProtectedRoute>
           }
         >
