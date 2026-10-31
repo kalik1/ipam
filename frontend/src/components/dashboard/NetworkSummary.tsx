@@ -1,5 +1,6 @@
 import { summaryStats, type DeviceTotals } from '@/lib/dashboard'
 import { plural } from '@/lib/format'
+import { STATE_CLASS } from '@/lib/portGlyph'
 import type { Rack } from '@/lib/rack'
 import { AllocationSegments } from '@/components/addressMap/AllocationBar'
 
@@ -36,11 +37,11 @@ export function NetworkSummary({ rack, devices, agents }: { rack: Rack; devices:
         <AllocationSegments counters={counters} />
         <div className="legend">
           <span className="lg">
-            <span className="sw occ" />
+            <span className={`sw ${STATE_CLASS.occupied}`} />
             Occupied <b>{counters.occupied}</b>
           </span>
           <span className="lg">
-            <span className="sw res" />
+            <span className={`sw ${STATE_CLASS.reserved}`} />
             Reserved <b>{counters.reserved}</b>
           </span>
           <span className="lg">

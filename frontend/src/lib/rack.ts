@@ -1,7 +1,8 @@
 import type { AddressCounters, AddressMap } from './addressMap'
+import { STATE_CLASS, type LinkClass, type StateClass } from './portGlyph'
 import type { TopologyBranch, TopologySubnetNode } from './topology'
 
-export type RackCell = 'on' | 'off' | 'res' | 'na' | 'free'
+export type RackCell = LinkClass | Exclude<StateClass, 'occ'>
 
 export interface RackRow {
   id: number
@@ -51,9 +52,9 @@ export function isLowOnFree(counters: Pick<AddressCounters, 'usable' | 'free'>):
 function cellState(counters: AddressCounters): RackCell {
   if (counters.occupiedOnline > 0) return 'on'
   if (counters.occupied > 0) return 'off'
-  if (counters.reserved > 0) return 'res'
-  if (counters.usable === 0) return 'na'
-  return 'free'
+  if (counters.reserved > 0) return STATE_CLASS.reserved
+  if (counters.usable === 0) return STATE_CLASS['not-usable']
+  return STATE_CLASS.free
 }
 
 export function rackCells(map: Pick<AddressMap, 'network' | 'size' | 'count'>, limit = RACK_CELLS): RackCell[] {

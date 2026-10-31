@@ -5,8 +5,6 @@ import { sweepClass, type LiveState } from '@/lib/liveState'
 import type { RackCell, RackRow } from '@/lib/rack'
 import { EmptyState } from '@/components/EmptyState'
 
-const CELL_CLASS: Record<RackCell, string> = { on: 'c on', off: 'c off', res: 'c res', na: 'c na', free: 'c' }
-
 function poolText({ count, size }: RackRow['pools']): string {
   if (count === 0) return 'No DHCP pool'
   if (count === 1) return `DHCP pool of ${size}`
@@ -28,7 +26,7 @@ const MiniMap = memo(function MiniMap({ cells }: { cells: RackCell[] }) {
   return (
     <span className="mmap" aria-hidden="true">
       {cells.map((cell, index) => (
-        <span key={index} className={CELL_CLASS[cell]} />
+        <span key={index} className={`c ${cell}`} />
       ))}
     </span>
   )

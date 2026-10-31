@@ -1,17 +1,17 @@
 import type { AddressCounters } from '@/lib/addressMap'
+import { STATE_CLASS, type LinkClass, type StateClass } from '@/lib/portGlyph'
 
 interface Segment {
-  key: string
-  className: string
+  kind: StateClass | LinkClass
   count: number
   color?: string
 }
 
 function occupiedSegments(counters: AddressCounters, cable: string | undefined): Segment[] {
-  if (!cable) return [{ key: 'occ', className: 'seg occ', count: counters.occupied }]
+  if (!cable) return [{ kind: STATE_CLASS.occupied, count: counters.occupied }]
   return [
-    { key: 'on', className: 'seg on', count: counters.occupiedOnline, color: cable },
-    { key: 'off', className: 'seg off', count: counters.occupiedOffline, color: cable },
+    { kind: 'on', count: counters.occupiedOnline, color: cable },
+    { kind: 'off', count: counters.occupiedOffline, color: cable },
   ]
 }
 
@@ -23,8 +23,8 @@ function occupiedLabel(counters: AddressCounters, cable: string | undefined): st
 export function AllocationSegments({ counters, cable }: { counters: AddressCounters; cable?: string }) {
   const segments: Segment[] = [
     ...occupiedSegments(counters, cable),
-    { key: 'res', className: 'seg res', count: counters.reserved },
-    { key: 'free', className: 'seg free', count: counters.free },
+    { kind: STATE_CLASS.reserved, count: counters.reserved },
+    { kind: STATE_CLASS.free, count: counters.free },
   ]
   const label = `${occupiedLabel(counters, cable)}, ${counters.reserved} reserved, ${counters.free} free of ${counters.usable} usable addresses`
   return (
@@ -32,7 +32,7 @@ export function AllocationSegments({ counters, cable }: { counters: AddressCount
       {segments
         .filter((segment) => segment.count > 0)
         .map((segment) => (
-          <span key={segment.key} className={segment.className} style={{ flexGrow: segment.count, backgroundColor: segment.color }} />
+          <span key={segment.kind} className={`seg ${segment.kind}`} style={{ flexGrow: segment.count, backgroundColor: segment.color }} />
         ))}
     </div>
   )
@@ -52,7 +52,7 @@ export function AllocationBar({ counters, cable }: { counters: AddressCounters; 
           Occupied, offline <b>{counters.occupiedOffline}</b>
         </span>
         <span className="lg">
-          <span className="sw res" />
+          <span className={`sw ${STATE_CLASS.reserved}`} />
           Reserved <b>{counters.reserved}</b>
         </span>
         <span className="lg">
