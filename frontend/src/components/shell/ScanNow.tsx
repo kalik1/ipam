@@ -39,6 +39,7 @@ export function ScanNow() {
 
   useEffect(() => {
     let active = true
+    setAssignments(null)
     void loadAssignments(connected).then((list) => {
       if (active) setAssignments(list)
     })
@@ -98,7 +99,7 @@ export function ScanNow() {
         <div className="scan-pop panel" role="alert">
           <p className="scan-pop-title">
             <StatusLed state="error" />
-            {problems.length === 1 ? 'A scan failed' : `${problems.length} scans failed`}
+            {problems.length === 1 ? 'A connector run failed' : `${problems.length} connector runs failed`}
           </p>
           <ul className="scan-pop-list">
             {problems.map((problem) => (
