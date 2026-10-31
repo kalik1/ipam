@@ -1,11 +1,11 @@
 import { parseCidr } from './ip'
-import { vlanColor } from './vlan'
+import { vlanColor, vlanLabel, type VlanTag } from './vlan'
 
 export interface IndexableSubnet {
   id: number
   name: string
   cidr: string
-  vlan: { vlanId: number; name: string } | null
+  vlan: VlanTag | null
   deviceCount: number
   totalHosts: number
 }
@@ -22,10 +22,6 @@ export interface VlanCableGroup {
   label: string
   color: string
   subnets: IndexedSubnet[]
-}
-
-function groupLabel(vlan: IndexableSubnet['vlan']): string {
-  return vlan ? `VLAN ${vlan.vlanId}, ${vlan.name}` : 'No VLAN'
 }
 
 function devicePercent(subnet: IndexableSubnet): number {
@@ -45,7 +41,7 @@ export function groupSubnetsByVlan(subnets: IndexableSubnet[]): VlanCableGroup[]
     const tag = subnet.vlan?.vlanId ?? null
     let group = groups.get(tag)
     if (!group) {
-      group = { tag, label: groupLabel(subnet.vlan), color: vlanColor(tag), subnets: [] }
+      group = { tag, label: vlanLabel(subnet.vlan), color: vlanColor(tag), subnets: [] }
       groups.set(tag, group)
     }
     group.subnets.push({ id: subnet.id, name: subnet.name, cidr: subnet.cidr, percent: devicePercent(subnet) })

@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { vlanColor } from './vlan'
+import { vlanColor, vlanLabel } from './vlan'
+
+describe('vlanLabel', () => {
+  it('names a VLAN by its ID and name', () => {
+    expect(vlanLabel({ vlanId: 20, name: 'Users' })).toBe('VLAN 20, Users')
+  })
+
+  it('leaves out a blank name', () => {
+    expect(vlanLabel({ vlanId: 20, name: ' ' })).toBe('VLAN 20')
+  })
+
+  it('says when there is no VLAN', () => {
+    expect(vlanLabel(null)).toBe('No VLAN')
+    expect(vlanLabel(undefined)).toBe('No VLAN')
+  })
+})
 
 describe('vlanColor', () => {
   it('gives the seeded VLANs 10, 20 and 30 green, orange and pink cables', () => {

@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import indexHtml from '../../index.html?raw'
 import { THEME_KEY, resolveTheme } from './theme'
 
 function runPrePaintScript(stored: string | null, systemPrefersDark: boolean) {
-  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
-  const match = /<script>([\s\S]*?)<\/script>/.exec(html)
+  const match = /<script>([\s\S]*?)<\/script>/.exec(indexHtml)
   if (!match) throw new Error('index.html has no inline pre-paint script')
   const classes: string[] = []
   const style: { colorScheme?: string } = {}

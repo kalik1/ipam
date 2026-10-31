@@ -33,7 +33,7 @@ function Chevron({ open }: { open: boolean }) {
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+      className={`h-4 w-4 shrink-0 text-slate-500 ${open ? 'rotate-90' : ''}`}
       aria-hidden="true"
     >
       <path d="m9 6 6 6-6 6" />
@@ -53,7 +53,7 @@ function VlanSection({
     <div className="card mb-4 break-inside-avoid overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 border-b border-slate-800 px-5 py-3.5 text-left transition-colors hover:bg-slate-800/30"
+        className="flex w-full items-center gap-3 border-b border-slate-800 px-5 py-3.5 text-left hover:bg-slate-800/30"
         aria-expanded={open}
       >
         <Chevron open={open} />
@@ -72,7 +72,7 @@ function VlanSection({
         (vlan.subnets.length === 0 ? (
           <p className="px-5 py-4 text-sm text-slate-500">No subnets</p>
         ) : (
-          <div className="divide-y divide-slate-800/60 animate-fade-in">
+          <div className="divide-y divide-slate-800/60">
             {vlan.subnets.map((subnet) => (
               <SubnetSection key={subnet.id} subnet={subnet} hideOffline={hideOffline} />
             ))}
@@ -98,7 +98,7 @@ function SubnetSection({
         <div className="min-w-0">
           <Link
             to={`/subnets/${subnet.id}`}
-            className="text-sm font-medium text-slate-200 transition-colors hover:text-indigo-400"
+            className="text-sm font-medium text-slate-200 hover:text-indigo-400"
           >
             {subnet.name}
           </Link>
