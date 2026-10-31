@@ -9,6 +9,7 @@ import { FormField, inputClass } from '@/components/FormField'
 import { Modal } from '@/components/Modal'
 import { Panel, PanelHeader } from '@/components/Panel'
 import { Table, TableMessage } from '@/components/Table'
+import { Tooltip } from '@/components/Tooltip'
 import { Cable } from '@/components/VlanChip'
 import { PageActions } from '@/components/shell/PageActions'
 
@@ -128,9 +129,9 @@ export default function VlanListPage() {
                       {vlan.name}
                     </Link>
                   </td>
-                  <td className="cell-trunc text-fg-2" title={vlan.description || undefined}>
-                    {vlan.description || <span className="cell-muted">None</span>}
-                  </td>
+                  <Tooltip tip={vlan.description} focusable>
+                    <td className="cell-trunc text-fg-2">{vlan.description || <span className="cell-muted">None</span>}</td>
+                  </Tooltip>
                   <td className="mono text-fg-2">{new Date(vlan.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="row-actions">

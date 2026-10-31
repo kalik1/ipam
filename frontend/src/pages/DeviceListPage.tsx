@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import api, { getErrorMessage } from '@/lib/api'
 import { deviceBody, deviceDraft, subnetOptions, type DeviceBody, type DeviceDraft } from '@/lib/deviceForm'
 import { filterByStatus, statusCounts, type StatusFilter } from '@/lib/deviceList'
-import { timeAgo } from '@/lib/format'
+import { formatTimestamp, timeAgo } from '@/lib/format'
 import type { FormMode } from '@/lib/subnetForm'
 import type { Device, Subnet } from '@/types'
 import { Badge } from '@/components/Badge'
@@ -15,6 +15,7 @@ import { Modal } from '@/components/Modal'
 import { Panel, PanelHeader } from '@/components/Panel'
 import { Selector } from '@/components/Selector'
 import { Table, TableMessage } from '@/components/Table'
+import { Tooltip } from '@/components/Tooltip'
 import { Cable } from '@/components/VlanChip'
 import { PageActions } from '@/components/shell/PageActions'
 
@@ -234,20 +235,18 @@ function DeviceRow({
         {device.subnetId === null ? (
           <span className="mono">{device.ip}</span>
         ) : (
-          <Link
-            to={`/subnets/${device.subnetId}?ip=${encodeURIComponent(device.ip)}`}
-            className="cell-link mono"
-            title="Show on the address map"
-          >
-            {device.ip}
-          </Link>
+          <Tooltip tip="Show on the address map">
+            <Link to={`/subnets/${device.subnetId}?ip=${encodeURIComponent(device.ip)}`} className="cell-link mono">
+              {device.ip}
+            </Link>
+          </Tooltip>
         )}
       </td>
       <td className="font-semibold">{device.hostname || <span className="cell-muted font-normal">None</span>}</td>
       <td className="mono text-fg-2">{device.mac || <span className="cell-muted">None</span>}</td>
-      <td className="cell-trunc text-fg-2" title={device.vendor || undefined}>
-        {device.vendor || <span className="cell-muted">None</span>}
-      </td>
+      <Tooltip tip={device.vendor} focusable>
+        <td className="cell-trunc text-fg-2">{device.vendor || <span className="cell-muted">None</span>}</td>
+      </Tooltip>
       <td>
         {device.subnetId === null ? (
           <span className="cell-cable cell-muted">
@@ -261,9 +260,9 @@ function DeviceRow({
           </Link>
         )}
       </td>
-      <td className="text-fg-2" title={new Date(device.lastSeen).toLocaleString()}>
-        {timeAgo(device.lastSeen)}
-      </td>
+      <Tooltip tip={formatTimestamp(device.lastSeen)} focusable>
+        <td className="text-fg-2">{timeAgo(device.lastSeen)}</td>
+      </Tooltip>
       <td>
         <div className="row-actions">
           <Button variant="ghost" aria-label={`Edit device ${device.ip}`} onClick={onEdit}>

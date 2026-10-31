@@ -11,6 +11,7 @@
 @import "./styles/live-scans.css";
 @import "./styles/scan-now.css";
 @import "./styles/dashboard.css";
+@import "./styles/tooltip.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));

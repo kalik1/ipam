@@ -6,6 +6,7 @@ import { NAV_GROUPS } from '@/lib/nav'
 import { groupSubnetsByVlan } from '@/lib/subnetIndex'
 import { Button } from '@/components/Button'
 import { StatusLed } from '@/components/StatusLed'
+import { Tooltip } from '@/components/Tooltip'
 import { BrandMark, NavIcon } from '@/components/icons'
 import { SubnetIndex } from './SubnetIndex'
 import type { ShellData } from './useShellData'
@@ -66,16 +67,18 @@ export function Rail({ data, username, onLogout }: { data: ShellData; username?:
   return (
     <aside className="rail">
       <span className="railvent" aria-hidden="true" />
-      <div className="brand" title={LINK_LABEL[live.link]}>
-        <BrandMark ledClassName={brandLedClass(live)} />
-        <div>
-          <b>IPAM</b>
-          <span>Network address manager</span>
-          <span className="sr-only" role="status">
-            {LINK_LABEL[live.link]}
-          </span>
+      <Tooltip tip={LINK_LABEL[live.link]} describe={false} focusable>
+        <div className="brand">
+          <BrandMark ledClassName={brandLedClass(live)} />
+          <div>
+            <b>IPAM</b>
+            <span>Network address manager</span>
+            <span className="sr-only" role="status">
+              {LINK_LABEL[live.link]}
+            </span>
+          </div>
         </div>
-      </div>
+      </Tooltip>
       <MainNav counts={counts} />
       <SubnetIndex groups={groups} />
       <div className="railfoot">

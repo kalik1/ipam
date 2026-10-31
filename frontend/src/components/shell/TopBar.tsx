@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Crumb } from '@/lib/nav'
 import { useTheme } from '@/lib/useTheme'
 import { Button } from '@/components/Button'
+import { Tooltip } from '@/components/Tooltip'
 import { ThemeIcon } from '@/components/icons'
 import { GlobalSearch } from './GlobalSearch'
 import { ScanNow } from './ScanNow'
@@ -33,9 +34,11 @@ export function TopBar({ crumbs, actionsRef }: { crumbs: Crumb[]; actionsRef: (e
       <div className="topbar-tools">
         <GlobalSearch />
         <ScanNow />
-        <Button icon aria-label={themeLabel} title={themeLabel} onClick={toggle}>
-          <ThemeIcon />
-        </Button>
+        <Tooltip tip={themeLabel} describe={false}>
+          <Button icon aria-label={themeLabel} onClick={toggle}>
+            <ThemeIcon />
+          </Button>
+        </Tooltip>
         <div ref={actionsRef} className="page-actions" />
       </div>
     </header>

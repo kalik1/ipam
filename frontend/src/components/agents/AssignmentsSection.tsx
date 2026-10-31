@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormField, inputClass } from '@/components/FormField'
 import { StatusLed } from '@/components/StatusLed'
 import { Table } from '@/components/Table'
+import { Tooltip } from '@/components/Tooltip'
 import { RunFeedback } from './CommandResultView'
 
 const CRON_HINT = 'For example */5 * * * * (every 5 min), 0 * * * * (hourly), 0 0 * * * (daily)'
@@ -238,15 +239,11 @@ function AssignmentRow({ agent, assignment, editing, moving, moveTargets, onEdit
               }}
             />
           ) : (
-            <button
-              type="button"
-              className="cell-edit mono"
-              aria-label={`Edit schedule of ${label}`}
-              title="Edit schedule"
-              onClick={() => onEdit(true)}
-            >
-              {assignment.schedule}
-            </button>
+            <Tooltip tip="Edit schedule" describe={false}>
+              <button type="button" className="cell-edit mono" aria-label={`Edit schedule of ${label}`} onClick={() => onEdit(true)}>
+                {assignment.schedule}
+              </button>
+            </Tooltip>
           )}
         </td>
         <td>

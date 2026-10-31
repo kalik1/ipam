@@ -6,6 +6,7 @@ import { useTheme } from '@/lib/useTheme'
 import { Button } from '@/components/Button'
 import { FormField, inputClass } from '@/components/FormField'
 import { Panel } from '@/components/Panel'
+import { Tooltip } from '@/components/Tooltip'
 import { BrandMark, ThemeIcon } from '@/components/icons'
 
 export default function LoginPage() {
@@ -34,9 +35,11 @@ export default function LoginPage() {
 
   return (
     <main className="login">
-      <Button icon className="login-theme" aria-label={themeLabel} title={themeLabel} onClick={toggle}>
-        <ThemeIcon />
-      </Button>
+      <Tooltip tip={themeLabel} describe={false}>
+        <Button icon className="login-theme" aria-label={themeLabel} onClick={toggle}>
+          <ThemeIcon />
+        </Button>
+      </Tooltip>
       <Panel hud className="login-card" aria-labelledby="login-title">
         <span className="cscrew tl" aria-hidden="true" />
         <span className="cscrew tr" aria-hidden="true" />

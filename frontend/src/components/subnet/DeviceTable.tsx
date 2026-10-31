@@ -10,6 +10,7 @@ import { Badge } from '@/components/Badge'
 import { Panel } from '@/components/Panel'
 import { Selector } from '@/components/Selector'
 import { Table, TableMessage } from '@/components/Table'
+import { Tooltip } from '@/components/Tooltip'
 
 const FILTER_LABELS: Record<DeviceFilter, string> = {
   all: 'All',
@@ -87,9 +88,9 @@ export function DeviceTable({ devices, map, prefix, filter, selectedIp, onFilter
                 <td>{device.vendor || <span className="text-fg-3">Unknown</span>}</td>
                 <td className="text-fg-2">{timeAgo(device.lastSeen)}</td>
                 <td className="text-fg-2">{formatDay(device.createdAt)}</td>
-                <td className="notes" title={device.notes}>
-                  {device.notes}
-                </td>
+                <Tooltip tip={device.notes} focusable>
+                  <td className="notes">{device.notes}</td>
+                </Tooltip>
               </tr>
             )
           })}

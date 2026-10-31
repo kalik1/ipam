@@ -1,4 +1,4 @@
-import { occupancyText, type Occupancy } from '@/lib/occupancy'
+import type { Occupancy } from '@/lib/occupancy'
 
 function share(count: number, usable: number): string {
   return `${usable > 0 ? (count / usable) * 100 : 0}%`
@@ -15,7 +15,7 @@ export function OccupancyBar({ occupancy, color }: { occupancy: Occupancy; color
 
 export function OccupancyMeter({ occupancy, color }: { occupancy: Occupancy; color: string }) {
   return (
-    <span className="occ" title={occupancyText(occupancy)}>
+    <span className="occ">
       <OccupancyBar occupancy={occupancy} color={color} />
       <span className="mono">{occupancy.occupied}</span>
     </span>

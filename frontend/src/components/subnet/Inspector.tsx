@@ -9,6 +9,7 @@ import { Button } from '@/components/Button'
 import { FormField, inputClass } from '@/components/FormField'
 import { Panel } from '@/components/Panel'
 import { StatusLed } from '@/components/StatusLed'
+import { Tooltip } from '@/components/Tooltip'
 
 export interface AssignBody {
   hostname: string
@@ -65,20 +66,24 @@ function DeviceDetails({ device, slot, onEdit, onDelete }: { device: Device; slo
       <dl className="kv">
         <div>
           <dt>MAC address</dt>
-          <dd className={device.mac ? 'mono' : undefined} title={device.mac}>
-            {device.mac ? (
-              <>
-                <span className="oui">{mac.oui}</span>
-                {mac.nic}
-              </>
-            ) : (
-              'Unknown'
-            )}
-          </dd>
+          <Tooltip tip={device.mac} focusable>
+            <dd className={device.mac ? 'mono' : undefined}>
+              {device.mac ? (
+                <>
+                  <span className="oui">{mac.oui}</span>
+                  {mac.nic}
+                </>
+              ) : (
+                'Unknown'
+              )}
+            </dd>
+          </Tooltip>
         </div>
         <div>
           <dt>Vendor</dt>
-          <dd title={device.vendor}>{device.vendor || 'Unknown'}</dd>
+          <Tooltip tip={device.vendor} focusable>
+            <dd>{device.vendor || 'Unknown'}</dd>
+          </Tooltip>
         </div>
         <div>
           <dt>Last seen</dt>
@@ -193,7 +198,9 @@ function AddressMathList({ ip, cidr, includeFirstLast }: { ip: string; cidr: str
         </div>
         <div>
           <dt>PTR</dt>
-          <dd title={math.ptr}>{math.ptr}</dd>
+          <Tooltip tip={math.ptr} focusable>
+            <dd>{math.ptr}</dd>
+          </Tooltip>
         </div>
         <div>
           <dt>Address</dt>

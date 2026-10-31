@@ -3,6 +3,7 @@ import type { OfflineEntry } from '@/lib/dashboard'
 import { formatTimestamp, timeAgo } from '@/lib/format'
 import { Panel } from '@/components/Panel'
 import { StatusLed } from '@/components/StatusLed'
+import { Tooltip } from '@/components/Tooltip'
 
 export function WentOfflinePanel({ entries, failed }: { entries: OfflineEntry[] | null; failed: boolean }) {
   return (
@@ -19,18 +20,18 @@ export function WentOfflinePanel({ entries, failed }: { entries: OfflineEntry[] 
         <ul className="list">
           {entries.map((entry) => (
             <li key={entry.id}>
-              <Link to={entry.href} aria-label={`${entry.name}, ${entry.ip}, last seen ${timeAgo(entry.lastSeen)}`}>
-                <StatusLed state="off" />
-                <span className="t">{entry.name}</span>
-                <span className="w" title={formatTimestamp(entry.lastSeen)}>
-                  {timeAgo(entry.lastSeen)}
-                </span>
-                <span className="s">
-                  <span className="mono">{entry.ip}</span>
-                  {entry.color && <span className="cable" style={{ background: entry.color }} aria-hidden="true" />}
-                  {entry.subnet ?? 'No subnet'}
-                </span>
-              </Link>
+              <Tooltip tip={`Last seen ${formatTimestamp(entry.lastSeen)}`}>
+                <Link to={entry.href} aria-label={`${entry.name}, ${entry.ip}, last seen ${timeAgo(entry.lastSeen)}`}>
+                  <StatusLed state="off" />
+                  <span className="t">{entry.name}</span>
+                  <span className="w">{timeAgo(entry.lastSeen)}</span>
+                  <span className="s">
+                    <span className="mono">{entry.ip}</span>
+                    {entry.color && <span className="cable" style={{ background: entry.color }} aria-hidden="true" />}
+                    {entry.subnet ?? 'No subnet'}
+                  </span>
+                </Link>
+              </Tooltip>
             </li>
           ))}
         </ul>
