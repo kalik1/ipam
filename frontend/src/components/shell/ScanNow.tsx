@@ -86,7 +86,7 @@ export function ScanNow() {
       </span>
       <Button
         variant="primary"
-        aria-disabled={view.blocked || undefined}
+        aria-disabled={(view.blocked && !view.busy) || undefined}
         aria-busy={view.busy || undefined}
         aria-describedby={view.status ? STATUS_ID : undefined}
         onClick={() => void scanNow()}
