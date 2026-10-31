@@ -13,6 +13,7 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { hashApiKey } from '../lib/api-key';
 import { ApiKey } from '../entities/api-key.entity';
 import { EventsService } from '../events/events.service';
+import { LiveEventData } from '../events/live-event';
 import { NetworkImportService } from '../network-import/network-import.service';
 import { ScanService } from '../scan/scan.service';
 import {
@@ -134,6 +135,10 @@ export class AgentWsService
     };
     if (dto.params !== undefined) command.params = dto.params;
     session.socket.send(JSON.stringify(command));
+    this.events.publish({
+      type: 'command.sent',
+      data: { commandId: id, agent: name, connector: dto.connector },
+    });
     return { id };
   }
 
@@ -256,6 +261,7 @@ export class AgentWsService
       const oldest = this.resultsByCommandId.keys().next().value;
       if (oldest !== undefined) this.resultsByCommandId.delete(oldest);
     }
+    this.publishResult(session.name, stored);
 
     const devices = extractDevices(message.data);
     if (devices) {
@@ -286,6 +292,16 @@ export class AgentWsService
       this.sessions.delete(name);
       this.publishDisconnected(name);
     }
+  }
+
+  private publishResult(agent: string, result: StoredResult): void {
+    const data: LiveEventData['command.result'] = {
+      commandId: result.id,
+      agent,
+      ok: result.ok,
+    };
+    if (!result.ok) data.error = result.error;
+    this.events.publish({ type: 'command.result', data });
   }
 
   private publishDisconnected(agent: string): void {

@@ -1,72 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { AgentResult } from '../types'
-import { awaitCommandResult, formatValue, resultSections } from './commandResult'
+import { commandOutcome, formatValue, resultSections } from './commandResult'
+
+const NOW = '2026-10-31T10:00:05.000Z'
 
 function result(id: string): AgentResult {
   return { id, ok: true, data: { devices: [] }, receivedAt: '2026-10-31T10:00:00.000Z' }
 }
 
-describe('awaitCommandResult', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
+describe('commandOutcome', () => {
+  it('shows the data of the agent result once the command result event arrived', () => {
+    const outcome = commandOutcome('cmd-1', { commandId: 'cmd-1', agent: 'probe', ok: true }, result('cmd-1'), NOW)
+
+    expect(outcome).toEqual({ status: 'done', result: result('cmd-1') })
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
+  it('shows the error of a failed command even when the agent already has a newer result', () => {
+    const outcome = commandOutcome(
+      'cmd-1',
+      { commandId: 'cmd-1', agent: 'probe', ok: false, error: 'connect ECONNREFUSED' },
+      result('cmd-2'),
+      NOW,
+    )
+
+    expect(outcome).toEqual({ status: 'done', result: { id: 'cmd-1', ok: false, error: 'connect ECONNREFUSED', receivedAt: NOW } })
   })
 
-  it('resolves with the latest result once it carries the command id', async () => {
-    const fetchResult = vi
-      .fn<() => Promise<AgentResult>>()
-      .mockResolvedValueOnce(result('older-command'))
-      .mockResolvedValueOnce(result('cmd-1'))
+  it('shows a successful command without data when its result is no longer the latest one', () => {
+    const outcome = commandOutcome('cmd-1', { commandId: 'cmd-1', agent: 'probe', ok: true }, null, NOW)
 
-    const outcome = awaitCommandResult({ fetchResult, commandId: 'cmd-1', intervalMs: 1000, timeoutMs: 10_000 })
-    await vi.advanceTimersByTimeAsync(2000)
-
-    await expect(outcome).resolves.toEqual(result('cmd-1'))
-    expect(fetchResult).toHaveBeenCalledTimes(2)
+    expect(outcome).toEqual({ status: 'done', result: { id: 'cmd-1', ok: true, receivedAt: NOW } })
   })
 
-  it('keeps waiting while the agent has no result yet', async () => {
-    const fetchResult = vi
-      .fn<() => Promise<AgentResult>>()
-      .mockRejectedValueOnce(new Error('404'))
-      .mockResolvedValueOnce(result('cmd-1'))
-
-    const outcome = awaitCommandResult({ fetchResult, commandId: 'cmd-1', intervalMs: 1000, timeoutMs: 10_000 })
-    await vi.advanceTimersByTimeAsync(2000)
-
-    await expect(outcome).resolves.toEqual(result('cmd-1'))
+  it('still finds the result without its event when the agent result carries the command id', () => {
+    expect(commandOutcome('cmd-1', undefined, result('cmd-1'), NOW)).toEqual({ status: 'done', result: result('cmd-1') })
   })
 
-  it('gives up with no result after the timeout and stops asking', async () => {
-    const fetchResult = vi.fn<() => Promise<AgentResult>>().mockResolvedValue(result('other-command'))
-
-    const outcome = awaitCommandResult({ fetchResult, commandId: 'cmd-1', intervalMs: 1000, timeoutMs: 3000 })
-    await vi.advanceTimersByTimeAsync(10_000)
-
-    await expect(outcome).resolves.toBeNull()
-    expect(fetchResult).toHaveBeenCalledTimes(3)
-  })
-
-  it('stops asking when the wait is aborted', async () => {
-    const fetchResult = vi.fn<() => Promise<AgentResult>>().mockResolvedValue(result('other-command'))
-    const controller = new AbortController()
-
-    const outcome = awaitCommandResult({
-      fetchResult,
-      commandId: 'cmd-1',
-      intervalMs: 1000,
-      timeoutMs: 10_000,
-      signal: controller.signal,
-    })
-    await vi.advanceTimersByTimeAsync(1000)
-    controller.abort()
-    await vi.advanceTimersByTimeAsync(10_000)
-
-    await expect(outcome).resolves.toBeNull()
-    expect(fetchResult).toHaveBeenCalledTimes(1)
+  it('times out without the event and without a matching agent result', () => {
+    expect(commandOutcome('cmd-1', undefined, result('cmd-0'), NOW)).toEqual({ status: 'timeout' })
+    expect(commandOutcome('cmd-1', undefined, null, NOW)).toEqual({ status: 'timeout' })
   })
 })
 

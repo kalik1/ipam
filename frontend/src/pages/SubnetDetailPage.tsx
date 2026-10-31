@@ -4,7 +4,7 @@ import axios from 'axios'
 import api, { createDhcpPool, deleteDhcpPool, getErrorMessage, type DhcpPoolBody } from '@/lib/api'
 import { buildAddressMap, type AddressSlot } from '@/lib/addressMap'
 import { useLive, useLiveEvent } from '@/lib/live'
-import { devicePulseClass, pulseClass } from '@/lib/liveState'
+import { devicePulseClass, pulseClass, sweepClass } from '@/lib/liveState'
 import { affectsSubnet, subnetActivity } from '@/lib/subnetLive'
 import { selectedAddress, type DeviceFilter } from '@/lib/subnetDevices'
 import { vlanColor } from '@/lib/vlan'
@@ -200,7 +200,7 @@ function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
           selectedIp={ip}
           hover={hover}
           booting={booting}
-          passClass={pulseClass(sweep, live.settled, 'pass')}
+          passClass={sweepClass(live, subnet.id)}
           fiberClass={pulseClass(sweep, live.settled, 'rx')}
           devicePulse={devicePulse}
           onBlockChange={(index) => setBlockChoice({ ip, index })}

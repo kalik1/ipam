@@ -188,6 +188,98 @@ describe('AgentWsService live events', () => {
     expect(events).toEqual([]);
   });
 
+  it('emits command.sent with the id it returns when a command goes to a connected agent', async () => {
+    const socket = await connect();
+
+    const { id } = service.sendCommand('probe', {
+      action: 'run_connector',
+      connector: 'demo',
+      params: {},
+    });
+
+    expect(socket.sent.at(-1)).toEqual({
+      type: 'command',
+      id,
+      action: 'run_connector',
+      connector: 'demo',
+      params: {},
+    });
+    expect(events.slice(1)).toEqual([
+      {
+        type: 'command.sent',
+        data: { commandId: id, agent: 'probe', connector: 'demo' },
+      },
+    ]);
+  });
+
+  it('emits nothing when a command targets an agent that is not connected', () => {
+    expect(() =>
+      service.sendCommand('ghost', {
+        action: 'run_connector',
+        connector: 'demo',
+      }),
+    ).toThrow('Agent not connected');
+    expect(events).toEqual([]);
+  });
+
+  it('emits command.result for a successful result before the scan of its devices', async () => {
+    const socket = await connect();
+    let eventsWhenScanned = 0;
+    scanService.receiveConnectorResult.mockImplementation(async () => {
+      eventsWhenScanned = events.length;
+      return { created: 0, updated: 0, devices: [] };
+    });
+
+    socket.receive({
+      type: 'result',
+      id: 'c1',
+      ok: true,
+      data: { connector: 'demo', devices: [{ ip: '192.168.1.10' }] },
+    });
+    await flush();
+
+    expect(events.slice(1)).toEqual([
+      {
+        type: 'command.result',
+        data: { commandId: 'c1', agent: 'probe', ok: true },
+      },
+    ]);
+    expect(eventsWhenScanned).toBe(2);
+  });
+
+  it('emits command.result with the error of a failed result', async () => {
+    const socket = await connect();
+
+    socket.receive({
+      type: 'result',
+      id: 'c2',
+      ok: false,
+      error: 'connect ECONNREFUSED 192.168.1.1:8728',
+    });
+    await flush();
+
+    expect(events.slice(1)).toEqual([
+      {
+        type: 'command.result',
+        data: {
+          commandId: 'c2',
+          agent: 'probe',
+          ok: false,
+          error: 'connect ECONNREFUSED 192.168.1.1:8728',
+        },
+      },
+    ]);
+  });
+
+  it('emits no command.result for a result before hello', async () => {
+    const socket = new FakeSocket();
+    service.handleConnection(socket as unknown as WebSocket);
+    socket.receive({ type: 'result', id: 'c3', ok: true, data: {} });
+    await flush();
+
+    expect(events).toEqual([]);
+  });
+
   it('hands the devices of a connector result to the scan service as a scan of that agent', async () => {
     const socket = await connect();
     socket.receive({

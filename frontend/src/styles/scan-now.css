@@ -1,0 +1,69 @@
+@layer components {
+  .scan-now {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .scanpill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-2);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .scanpill:not(:empty) {
+    margin-right: 10px;
+  }
+
+  .main > .topbar:has(.scan-pop) {
+    z-index: 2;
+  }
+  .scan-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: min(420px, calc(100vw - 32px));
+    padding: 10px 14px 12px;
+    border-color: color-mix(in oklab, var(--danger) 55%, var(--line));
+    box-shadow: inset 0 1px 0 var(--panel-hi), 0 10px 28px rgba(0, 0, 0, 0.4);
+  }
+  .scan-pop-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .scan-pop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    color: var(--danger);
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+
+  .sweep.loop {
+    animation: scan-loop 2.4s linear infinite;
+  }
+}
+
+@keyframes scan-loop {
+  0% {
+    left: -180px;
+    opacity: 0.75;
+  }
+  100% {
+    left: 100%;
+    opacity: 0.75;
+  }
+}

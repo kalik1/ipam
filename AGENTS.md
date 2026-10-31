@@ -20,11 +20,15 @@ cd frontend && npm install && npm run dev
 
 # agent (needs a running backend and an API key)
 cd agent && npm install && npm run scan -- --api-key ipam-... --agent-name myagent
+
+# WebSocket agent with connectors, connects to the backend port directly (not the Vite proxy)
+cd agent && npm run ws -- --api-key ipam-... --server ws://localhost:3000 --agent-name myagent --connector demo
 ```
 
 - The backend seeds automatically on first start (empty `backend/data/ipam.sqlite`): user `admin`/`admin`, demo VLANs/subnets/devices, and one API key named `seed` whose full value is printed once to the console.
 - For a fresh re-seed: stop the backend and delete `backend/data/ipam.sqlite`.
 - Node 24 is required (the agent relies on native TS type stripping: `node src/agent.ts`).
+- Connectors of the WebSocket agent: `mikrotik` (a real RouterOS device; the seeded connector points at a fake host, so its runs always fail) and `demo` (no config, returns a few fake devices in the seeded subnets after a short pause). For a successful scan end to end: create a `demo` connector with an empty config, assign it to the agent, run it or click "Scan now".
 - To run several checkouts side by side: the backend honors `PORT`; the frontend dev server reads `IPAM_WEB_PORT` (default 5173) and `IPAM_API_TARGET` (proxy target, default `http://localhost:3000`).
 
 ## Build and test commands
@@ -77,6 +81,7 @@ Run build and tests in every subproject you touch. All must pass before you are 
 
 - The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP). Every scan ingestion path (HTTP report, WebSocket report, connector result) goes through `ScanService`, which publishes `device.created` for new devices and one `scan.report` per scan; do not upsert devices around it.
 - Live events: `GET /api/v1/events` is a server-sent events stream for the web UI (JWT in the `Authorization` header, never in the URL; `: keepalive` comments every 15s, no replay). Backend services publish through the global `EventsService.publish({ type, data })` in `backend/src/events/`; the event union is `backend/src/events/live-event.ts`, mirrored in `frontend/src/lib/liveEvents.ts`. The frontend opens one stream in `LiveProvider` (`frontend/src/lib/live.tsx`): animation state comes from the pure `liveReducer` (`frontend/src/lib/liveState.ts`) through `useLive()`, raw events through `useLiveEvent(listener)`.
+- Commands: `AgentWsService.sendCommand` publishes `command.sent` for every command (manual run, ad hoc command, connector scheduler) and `handleResult` publishes `command.result` before the scan of that result. "Scan now" in the top bar runs every enabled assignment of the connected agents through `POST /agents/:name/connectors/:connectorId/run`; it shows "Scanning" and the subnet maps loop their sweep while any `command.sent` has no `command.result` yet, whoever sent it.
 - Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s), which publishes one `device.offline` with the devices it changed.
 - `API.md` and this file must stay in sync when routes or behaviors change.
 - Git repo: https://github.com/kalik1/ipam (branch `main`). Commit or push only when asked.

@@ -4,6 +4,8 @@ import {
   INITIAL_LIVE_STATE,
   RECENT_SCANS_LIMIT,
   blinkClass,
+  isScanning,
+  sweepClass,
   brandLedClass,
   devicePulseClass,
   liveReducer,
@@ -278,5 +280,107 @@ describe('devicePulseClass', () => {
     expect(devicePulseClass(state, 4)).toBe('fade-a')
     expect(devicePulseClass(state, 5)).toBeUndefined()
     expect(devicePulseClass(run([{ kind: 'settle', seq: 3 }], state), 9)).toBeUndefined()
+  })
+})
+
+function sent(commandId: string, agent = 'probe', connector = 'demo'): LiveAction {
+  return event({ type: 'command.sent', data: { commandId, agent, connector } })
+}
+
+function result(commandId: string, agent = 'probe', error?: string): LiveAction {
+  return event({
+    type: 'command.result',
+    data: error === undefined ? { commandId, agent, ok: true } : { commandId, agent, ok: false, error },
+  })
+}
+
+describe('pending commands', () => {
+  it('loops the sweep over every subnet map from a sent command until its result', () => {
+    const scanning = run([sent('c1')])
+    const done = run([result('c1')], scanning)
+
+    expect(isScanning(scanning)).toBe(true)
+    expect(scanning.pending).toEqual({ c1: { agent: 'probe', connector: 'demo' } })
+    expect([sweepClass(scanning, 1), sweepClass(scanning, 2)]).toEqual(['loop', 'loop'])
+    expect(isScanning(done)).toBe(false)
+    expect(sweepClass(done, 1)).toBeUndefined()
+  })
+
+  it('keeps scanning until the result of every sent command arrived', () => {
+    const two = run([sent('c1', 'alpha', 'demo'), sent('c2', 'beta', 'mikrotik')])
+    const one = run([result('c2', 'beta')], two)
+    const none = run([result('c1', 'alpha')], one)
+
+    expect(two.pending).toEqual({ c1: { agent: 'alpha', connector: 'demo' }, c2: { agent: 'beta', connector: 'mikrotik' } })
+    expect(one.pending).toEqual({ c1: { agent: 'alpha', connector: 'demo' } })
+    expect(isScanning(one)).toBe(true)
+    expect(isScanning(none)).toBe(false)
+  })
+
+  it('ignores a result for a command it never saw sent', () => {
+    const state = run([sent('c1'), result('other')])
+
+    expect(state.pending).toEqual({ c1: { agent: 'probe', connector: 'demo' } })
+    expect(state.received).toBe(2)
+  })
+
+  it('gives the scan report of a result its single pass once no command is pending', () => {
+    const state = run([sent('c1'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+    const stillScanning = run([sent('c1'), sent('c2'), result('c1'), scanReport([{ subnetId: 1, deviceIds: [7] }])])
+
+    expect(sweepClass(state, 1)).toBe('pass-a')
+    expect(sweepClass(state, 2)).toBeUndefined()
+    expect(sweepClass(stillScanning, 1)).toBe('loop')
+    expect(devicePulseClass(stillScanning, 7)).toBe('seen-a')
+  })
+
+  it('stops waiting for the commands of an agent that disconnected', () => {
+    const state = run([
+      sent('c1', 'alpha'),
+      sent('c2', 'beta'),
+      event({ type: 'agent.disconnected', data: { agent: 'alpha' } }),
+    ])
+
+    expect(state.pending).toEqual({ c2: { agent: 'beta', connector: 'demo' } })
+  })
+
+  it('stops waiting for every command when the live channel drops, since their results may be missed', () => {
+    const state = run([{ kind: 'link', status: 'open' }, sent('c1'), sent('c2'), { kind: 'link', status: 'down' }])
+
+    expect(isScanning(state)).toBe(false)
+  })
+})
+
+describe('failed commands', () => {
+  it('keeps the error of a failed result with the connector it ran, newest first', () => {
+    const state = run([
+      sent('c1', 'probe', 'mikrotik'),
+      sent('c2', 'probe', 'demo'),
+      sent('c3', 'edge', 'mikrotik'),
+      result('c1', 'probe', 'connect ECONNREFUSED'),
+      result('c2', 'probe'),
+      result('c3', 'edge', 'timeout'),
+    ])
+
+    expect(state.failures).toEqual([
+      { commandId: 'c3', agent: 'edge', connector: 'mikrotik', error: 'timeout', seq: 6 },
+      { commandId: 'c1', agent: 'probe', connector: 'mikrotik', error: 'connect ECONNREFUSED', seq: 4 },
+    ])
+  })
+
+  it('ignores a failed result for a command it never saw sent', () => {
+    expect(run([result('other', 'probe', 'boom')]).failures).toEqual([])
+  })
+
+  it('forgets the error of a connector when that connector runs again on the same agent', () => {
+    const state = run([
+      sent('c1', 'probe', 'mikrotik'),
+      sent('c2', 'edge', 'mikrotik'),
+      result('c1', 'probe', 'connect ECONNREFUSED'),
+      result('c2', 'edge', 'timeout'),
+      sent('c3', 'probe', 'mikrotik'),
+    ])
+
+    expect(state.failures.map((failure) => failure.commandId)).toEqual(['c2'])
   })
 })

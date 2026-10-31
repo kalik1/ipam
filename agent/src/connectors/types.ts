@@ -53,5 +53,5 @@ export interface ConnectorResult {
 
 export interface Connector {
   name: string;
-  read(config: ConnectorConfig): Promise<ConnectorResult>;
+  read(params: unknown): Promise<ConnectorResult>;
 }
