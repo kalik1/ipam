@@ -6,7 +6,7 @@ import { Table, TableMessage } from '@/components/Table'
 
 const COLUMNS = 4
 
-export function LatestScansPanel({ entries }: { entries: ScanEntry[] | null }) {
+export function LatestScansPanel({ entries, failed }: { entries: ScanEntry[] | null; failed: boolean }) {
   return (
     <Panel className="box" aria-label="Latest scan reports">
       <div className="boxhead">
@@ -26,7 +26,7 @@ export function LatestScansPanel({ entries }: { entries: ScanEntry[] | null }) {
         </thead>
         <tbody>
           {entries === null ? (
-            <TableMessage colSpan={COLUMNS}>Loading scan reports...</TableMessage>
+            <TableMessage colSpan={COLUMNS}>{failed ? 'Could not load the scan reports' : 'Loading scan reports...'}</TableMessage>
           ) : entries.length === 0 ? (
             <TableMessage colSpan={COLUMNS}>No scans reported yet</TableMessage>
           ) : (

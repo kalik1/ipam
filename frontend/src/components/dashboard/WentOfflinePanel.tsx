@@ -4,7 +4,7 @@ import { formatTimestamp, timeAgo } from '@/lib/format'
 import { Panel } from '@/components/Panel'
 import { StatusLed } from '@/components/StatusLed'
 
-export function WentOfflinePanel({ entries }: { entries: OfflineEntry[] | null }) {
+export function WentOfflinePanel({ entries, failed }: { entries: OfflineEntry[] | null; failed: boolean }) {
   return (
     <Panel className="box" aria-label="Went offline">
       <div className="boxhead">
@@ -12,7 +12,7 @@ export function WentOfflinePanel({ entries }: { entries: OfflineEntry[] | null }
         <span className="r">Most recent first</span>
       </div>
       {entries === null ? (
-        <p className="box-note">Loading devices...</p>
+        <p className="box-note">{failed ? 'Could not load the devices' : 'Loading devices...'}</p>
       ) : entries.length === 0 ? (
         <p className="box-note">Every device was seen in the last 5 minutes</p>
       ) : (

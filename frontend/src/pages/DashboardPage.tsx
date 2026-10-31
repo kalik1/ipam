@@ -49,7 +49,7 @@ export default function DashboardPage() {
         network.status === 'loading' && <p className="text-fg-3">Loading network...</p>
       )}
       <div className="lower">
-        <WentOfflinePanel entries={offline} />
+        <WentOfflinePanel entries={offline} failed={network.status === 'error'} />
         <DiscoveryPanel
           loaded={discovery.loaded}
           error={discovery.error}
@@ -57,7 +57,7 @@ export default function DashboardPage() {
           assignments={discovery.assignments}
           overlay={overlay}
         />
-        <LatestScansPanel entries={scans} />
+        <LatestScansPanel entries={scans} failed={reports.status === 'error'} />
       </div>
     </div>
   )
