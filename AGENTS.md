@@ -44,6 +44,7 @@ Run build and tests in every subproject you touch. All must pass before you are 
 - Small, focused functions; follow the existing module layout (NestJS modules: controller + service + DTOs with class-validator).
 - Backend date columns use `type: 'datetime'` (portable across sqlite and postgres; better-sqlite3 rejects `timestamp`).
 - Frontend: dark theme (slate-950 background, slate-900 cards, indigo accent); new pages/components follow the patterns in `frontend/src/components/` and `frontend/src/pages/`.
+- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline) or lasts only while a real state is in progress (a command still `sent`). Everything else is static: hover and focus change color instantly, no transitions. See `docs/adr/0001-animations-driven-by-real-events.md`.
 
 ## Testing instructions
 
