@@ -1,0 +1,47 @@
+@layer components {
+  .brand-led.on {
+    fill: var(--led);
+  }
+  .brand-led.err {
+    fill: var(--danger);
+  }
+  .brand-led.ev-a {
+    animation: brand-event-a 0.6s ease-out 1;
+  }
+  .brand-led.ev-b {
+    animation: brand-event-b 0.6s ease-out 1;
+  }
+
+  .dot.hb-a {
+    animation: agent-heartbeat-a 0.7s ease-out 1;
+  }
+  .dot.hb-b {
+    animation: agent-heartbeat-b 0.7s ease-out 1;
+  }
+}
+
+@keyframes brand-event-a {
+  0% {
+    fill: #F4FFF8;
+    filter: drop-shadow(0 0 4px var(--led));
+  }
+}
+@keyframes brand-event-b {
+  0% {
+    fill: #F4FFF8;
+    filter: drop-shadow(0 0 4px var(--led));
+  }
+}
+
+@keyframes agent-heartbeat-a {
+  0% {
+    background: #F4FFF8;
+    box-shadow: 0 0 12px 4px var(--led-glow);
+  }
+}
+@keyframes agent-heartbeat-b {
+  0% {
+    background: #F4FFF8;
+    box-shadow: 0 0 12px 4px var(--led-glow);
+  }
+}

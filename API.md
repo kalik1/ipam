@@ -346,6 +346,30 @@ server -> agent: `{ "type": "report_ack", "received": number, "created": number,
 
 Per messaggi non validi il server risponde `{"type":"error","message":"<codice>"}` e, a seconda del codice, può chiudere la connessione. Codici: `invalid_json`, `invalid_message`, `missing_type`, `unknown_type`, `invalid_agent`, `invalid_platform`, `invalid_api_key`, `invalid_connectors`, `invalid_devices`, `invalid_device`, `invalid_id`, `invalid_ok`, `invalid_data`, `invalid_error`, `not_authenticated`.
 
+## Live events
+
+### GET /events
+Header: `Authorization: Bearer <JWT>` (il token va solo nell'header, mai nell'URL; il frontend legge lo stream con `fetch`).
+- 200: stream `text/event-stream` (server-sent events) che resta aperto
+- 401: token assente o non valido
+
+Ogni evento è un messaggio SSE con `event: <tipo>`, un `id:` progressivo per connessione e una riga `data:` con il payload JSON:
+```
+event: agent.heartbeat
+id: 3
+data: {"agent":"hq-scanner","at":"2026-10-31T10:00:00.000Z"}
+
+```
+- Keepalive: ogni 15s il server invia il commento `: keepalive`. I commenti non sono eventi.
+- Nessun replay: un client riceve solo gli eventi pubblicati mentre è connesso (`Last-Event-ID` non è supportato). Dopo una riconnessione rileggere lo stato via REST (es. `GET /agents`).
+- I client devono ignorare i tipi di evento che non conoscono.
+
+| `event` | `data` | Quando |
+|---|---|---|
+| `agent.connected` | `{ "agent": string, "platform": string }` | `hello` valido sul WebSocket, anche quando sostituisce la sessione di un agente con lo stesso nome |
+| `agent.heartbeat` | `{ "agent": string, "at": string (ISO 8601) }` | ogni `ping` di un agente autenticato |
+| `agent.disconnected` | `{ "agent": string }` | chiusura del socket di una sessione attiva, oppure watchdog (nessun ping per 90s); non emesso quando un nuovo `hello` con lo stesso nome sostituisce la sessione |
+
 ## Summary
 
 ### GET /summary
