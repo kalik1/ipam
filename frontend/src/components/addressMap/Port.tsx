@@ -33,7 +33,6 @@ function PortButton<D extends AddressMapDevice>({
       className={cx(portClass(slot), selected && 'sel', hovered ? 'hov' : crosshair && 'xh')}
       aria-label={label}
       aria-pressed={selected}
-      title={label}
       style={style}
       onClick={() => onSelect?.(slot)}
       onMouseEnter={() => onHover?.(slot)}

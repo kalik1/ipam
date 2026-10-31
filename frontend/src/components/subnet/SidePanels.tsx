@@ -24,7 +24,7 @@ export function NextFreePanel({ addresses, free, prefix, onPick }: { addresses: 
       ) : (
         <div className="freegrid">
           {addresses.map((ip) => (
-            <button key={ip} type="button" className="freechip" aria-label={`Select ${ip}`} title={ip} onClick={() => onPick(ip)}>
+            <button key={ip} type="button" className="freechip" aria-label={`Select ${ip}`} onClick={() => onPick(ip)}>
               .{splitIp(ip, prefix).host}
             </button>
           ))}

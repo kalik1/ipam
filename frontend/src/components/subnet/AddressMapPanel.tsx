@@ -135,7 +135,15 @@ export function AddressMapPanel({ map, blockIndex, cable, selectedIp, hover, boo
           <span className="screw" />
           <span className="screw" />
         </div>
-        <div className={cx('ports', booting && 'booting')} role="group" aria-label={`Addresses of ${block.cidr}`} onMouseLeave={() => onHover(null)}>
+        <div
+          className={cx('ports', booting && 'booting')}
+          role="group"
+          aria-label={`Addresses of ${block.cidr}`}
+          onMouseLeave={() => onHover(null)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) onHover(null)
+          }}
+        >
           <div className="prow" aria-hidden="true">
             <span />
             {[COLUMNS.slice(0, 8), COLUMNS.slice(8)].map((bank, index) => (
