@@ -14,6 +14,12 @@ export function timeAgo(iso: string): string {
   return `${Math.floor(months / 12)}y ago`
 }
 
+export function formatDay(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'unknown'
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export type UtilizationLevel = 'ok' | 'warn' | 'danger'
 
 export function utilizationColor(percent: number): UtilizationLevel {

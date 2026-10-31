@@ -1,0 +1,467 @@
+@layer components {
+  .subnet-page {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .subnet-page .subhead {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 40px;
+    padding: 16px 20px 14px;
+    overflow: hidden;
+  }
+  .subnet-page .subhead > .idblock,
+  .subnet-page .subhead > .facts,
+  .subnet-page .subhead > .alloc {
+    position: relative;
+    z-index: 1;
+  }
+  .subnet-page .watermark {
+    position: absolute;
+    right: -10px;
+    bottom: -40px;
+    color: transparent;
+    font-family: var(--font-mono);
+    font-size: 160px;
+    font-stretch: 75%;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+    -webkit-text-stroke: 1px color-mix(in oklab, var(--text-3) 32%, transparent);
+  }
+  .subnet-page .idblock {
+    display: flex;
+    flex: 1 1 320px;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .subnet-page .idrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .subnet-page .cidr-hero {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-stretch: 80%;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .subnet-page .vlanchip {
+    align-self: flex-start;
+  }
+  .subnet-page .desc {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--text-2);
+  }
+
+  .subnet-page .ruler {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 420px;
+  }
+  .subnet-page .bits {
+    display: flex;
+    gap: 6px;
+  }
+  .subnet-page .bitgrp {
+    display: grid;
+    flex: 1 1 0;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 2px;
+  }
+  .subnet-page .bit {
+    height: 9px;
+    border-radius: 1px;
+  }
+  .subnet-page .bit.n {
+    background: var(--text-3);
+    opacity: 0.5;
+  }
+  .subnet-page .bit.h {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .subnet-page .bitlab {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    color: var(--text-3);
+    font-size: 11px;
+  }
+  .subnet-page .bitlab span + span {
+    color: var(--accent);
+    text-align: right;
+  }
+
+  .subnet-page .facts {
+    display: grid;
+    flex: 2 1 560px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-content: start;
+    gap: 10px 24px;
+    margin: 0;
+  }
+  .subnet-page .facts div,
+  .subnet-page .kv div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .subnet-page .facts dt,
+  .subnet-page .kv dt {
+    color: var(--text-3);
+    font-size: 11.5px;
+  }
+  .subnet-page .facts dd,
+  .subnet-page .kv dd {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .subnet-page .alloc {
+    display: flex;
+    flex: 1 1 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .subnet-page .workrow,
+  .subnet-page .bottomrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .subnet-page .mappanel {
+    display: flex;
+    flex: 3 1 640px;
+    flex-direction: column;
+    min-width: 0;
+    border-top-color: color-mix(in oklab, var(--accent) 50%, var(--line));
+    box-shadow: inset 0 1px 0 var(--panel-hi), 0 0 80px -24px color-mix(in oklab, var(--led) 35%, transparent);
+  }
+  .subnet-page .facehead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 10px 16px 10px 14px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .subnet-page .maplegend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+  .subnet-page .blockbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--text-2);
+  }
+  .subnet-page .blockbar .input {
+    width: auto;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .subnet-page .ports {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    padding: 12px 16px 16px;
+    overflow: hidden;
+  }
+  .subnet-page .prow {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 16px;
+  }
+  .subnet-page .bank {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .subnet-page .collab {
+    color: var(--text-3);
+    font-size: 9.5px;
+    text-align: center;
+  }
+  .subnet-page .rlabel {
+    color: var(--text-3);
+    font-size: 10.5px;
+    text-align: right;
+  }
+  .subnet-page .collab.hot,
+  .subnet-page .rlabel.hot {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .subnet-page .aside {
+    display: flex;
+    flex: 1 1 360px;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+  .subnet-page .insp {
+    display: flex;
+    flex-direction: column;
+  }
+  .subnet-page .insphead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .subnet-page .insphead .ip {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-stretch: 80%;
+    font-weight: 500;
+  }
+  .subnet-page .state-tag {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--sunk);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text-2);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .subnet-page .inspbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px 16px;
+  }
+  .subnet-page .inspbody + .inspbody {
+    padding-top: 0;
+  }
+  .subnet-page .host {
+    margin: 0;
+    font-size: 24px;
+    font-stretch: 80%;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+  .subnet-page .kv {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    margin: 0;
+  }
+  .subnet-page .oui,
+  .subnet-page .ipnet {
+    color: var(--text-3);
+  }
+  .subnet-page .note {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 3px;
+    background: var(--sunk);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .subnet-page .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .subnet-page .bin {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 3px;
+    background: #05080B;
+    background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.9);
+  }
+  .subnet-page .bin div {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+  }
+  .subnet-page .bin dt {
+    color: #6F8A99;
+    font-size: 11px;
+  }
+  .subnet-page .bin dd {
+    margin: 0;
+    overflow: hidden;
+    color: #C9D6E0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-stretch: 75%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .subnet-page .bin .nb {
+    color: #5A6B78;
+  }
+  .subnet-page .bin .hb {
+    color: #86EEF5;
+    text-shadow: 0 0 7px rgba(60, 200, 212, 0.5);
+  }
+
+  .subnet-page .side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 14px;
+  }
+  .subnet-page .sidehead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+  .subnet-page .sidehead h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .subnet-page .sidehead .r {
+    margin-left: auto;
+    color: var(--text-2);
+    font-size: 11.5px;
+  }
+  .subnet-page .side p {
+    margin: 0;
+    color: var(--text-2);
+  }
+  .subnet-page .freegrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 6px;
+  }
+  .subnet-page .freechip {
+    height: 28px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 0;
+    background: var(--panel-hi);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-stretch: 80%;
+    cursor: pointer;
+  }
+  .subnet-page .freechip:hover {
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--accent);
+  }
+  .subnet-page .freechip:active {
+    background: color-mix(in oklab, var(--accent) 18%, var(--panel-hi));
+  }
+  .subnet-page .pool + .pool {
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .subnet-page .pool {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .subnet-page .poolmeter {
+    display: flex;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 5px), var(--well);
+  }
+  .subnet-page .poolmeter i {
+    display: block;
+    height: 100%;
+  }
+  .subnet-page .poolform {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    align-items: end;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .subnet-page .tablepanel {
+    display: flex;
+    flex: 3 1 640px;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .subnet-page .tablepanel .r {
+    margin-left: auto;
+    color: var(--text-3);
+    font-size: 12px;
+  }
+  .subnet-page .linkbtn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .subnet-page .linkbtn:hover {
+    color: var(--accent);
+  }
+  .subnet-page td.notes {
+    max-width: 240px;
+    overflow: hidden;
+    color: var(--text-2);
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 760px) {
+    .subnet-page .facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .subnet-page .watermark {
+      display: none;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .subnet-page .prow {
+      grid-template-columns: 36px minmax(0, 1fr);
+      row-gap: 5px;
+      column-gap: 8px;
+    }
+    .subnet-page .prow > .bank + .bank {
+      grid-column: 2;
+    }
+    .subnet-page .faceplate .ear {
+      display: none;
+    }
+  }
+}
