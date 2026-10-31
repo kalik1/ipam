@@ -40,8 +40,8 @@ export interface Device {
   mac: string
   hostname: string
   vendor: string
-  subnetId: number
-  subnet: Subnet
+  subnetId: number | null
+  subnet?: Subnet | null
   status: 'online' | 'offline'
   lastSeen: string
   notes: string
