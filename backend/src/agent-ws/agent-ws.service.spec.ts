@@ -39,6 +39,7 @@ function flush(): Promise<void> {
 describe('AgentWsService live events', () => {
   let service: AgentWsService;
   let events: LiveEvent[];
+  let scanService: { receiveConnectorResult: jest.Mock };
 
   beforeEach(async () => {
     const keyRecord = { id: 1, name: 'test', keyHash: hashApiKey(VALID_KEY) };
@@ -47,13 +48,20 @@ describe('AgentWsService live events', () => {
         options.where.keyHash === keyRecord.keyHash ? keyRecord : null,
       ),
     };
+    scanService = {
+      receiveConnectorResult: jest.fn(async () => ({
+        created: 0,
+        updated: 0,
+        devices: [],
+      })),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         AgentWsService,
         EventsService,
         { provide: HttpAdapterHost, useValue: {} },
         { provide: getRepositoryToken(ApiKey), useValue: apiKeyRepo },
-        { provide: ScanService, useValue: {} },
+        { provide: ScanService, useValue: scanService },
         { provide: NetworkImportService, useValue: {} },
       ],
     }).compile();
@@ -178,5 +186,20 @@ describe('AgentWsService live events', () => {
     await flush();
 
     expect(events).toEqual([]);
+  });
+
+  it('hands the devices of a connector result to the scan service as a scan of that agent', async () => {
+    const socket = await connect();
+    socket.receive({
+      type: 'result',
+      id: 'c1',
+      ok: true,
+      data: { connector: 'mikrotik', devices: [{ ip: '192.168.1.10' }] },
+    });
+    await flush();
+
+    expect(scanService.receiveConnectorResult).toHaveBeenCalledWith('probe', [
+      { ip: '192.168.1.10' },
+    ]);
   });
 });

@@ -260,7 +260,7 @@ export class AgentWsService
     const devices = extractDevices(message.data);
     if (devices) {
       try {
-        await this.scanService.upsertDevices(devices);
+        await this.scanService.receiveConnectorResult(session.name, devices);
       } catch (error) {
         this.sendError(session.socket, describe(error));
       }
