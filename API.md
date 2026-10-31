@@ -67,8 +67,9 @@ Body: `{ "cidr": string (es. "192.168.1.0/24"), "name": string, "gateways"?: str
 - 409: CIDR già esistente
 
 ### PUT /subnets/:id
-Body: `{ "cidr"?: string, "name"?: string, "gateways"?: string[], "includeFirstLast"?: boolean, "dhcpPools"?: DhcpPoolBody[], "vlanId"?: number, "description"?: string, "domainName"?: string, "dnsServers"?: string, "ntpServers"?: string }`
+Body: `{ "cidr"?: string, "name"?: string, "gateways"?: string[], "includeFirstLast"?: boolean, "dhcpPools"?: DhcpPoolBody[], "vlanId"?: number | null, "description"?: string, "domainName"?: string, "dnsServers"?: string, "ntpServers"?: string }`
 - `gateways` e `dhcpPools`, se forniti, sostituiscono l'elenco completo
+- `vlanId: null` rimuove la VLAN dalla subnet
 - 200: `Subnet`
 - 400: se `cidr` non valida, gateway non nella subnet, gateway fuori range utilizzabile (se `includeFirstLast` = false), gateway duplicato, o pool DHCP non valido
 - 404: non trovata
@@ -122,7 +123,8 @@ Body: `{ "ip": string, "mac"?: string, "hostname"?: string, "vendor"?: string, "
 - 409: IP già esistente
 
 ### PUT /devices/:id
-Body: `{ "ip"?: string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number, "notes"?: string }`
+Body: `{ "ip"?: string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number | null, "notes"?: string }`
+- `subnetId: null` rimuove il device dalla subnet
 - 200: `Device`
 - 400: IP non valido, o `subnetId` inesistente
 - 404: non trovato

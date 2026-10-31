@@ -147,10 +147,9 @@ export class SubnetsService {
       subnet.includeFirstLast = dto.includeFirstLast;
     }
     if (dto.vlanId !== undefined) {
-      subnet.vlanId =
-        dto.vlanId === null
-          ? null
-          : await this.resolveVlanId(dto.vlanId);
+      subnet.vlan =
+        dto.vlanId === null ? null : await this.findVlan(dto.vlanId);
+      subnet.vlanId = subnet.vlan?.id ?? null;
     }
     if (dto.domainName !== undefined) subnet.domainName = dto.domainName;
     if (dto.dnsServers !== undefined) subnet.dnsServers = dto.dnsServers;
@@ -325,9 +324,13 @@ export class SubnetsService {
 
   private async resolveVlanId(vlanId?: number): Promise<number | null> {
     if (vlanId === undefined) return null;
-    const vlan = await this.vlanRepo.findOne({ where: { id: vlanId } });
+    return (await this.findVlan(vlanId)).id;
+  }
+
+  private async findVlan(id: number): Promise<Vlan> {
+    const vlan = await this.vlanRepo.findOne({ where: { id } });
     if (!vlan) throw new BadRequestException('VLAN not found');
-    return vlan.id;
+    return vlan;
   }
 
   private async deviceCounts(): Promise<Map<number, number>> {
