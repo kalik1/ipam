@@ -41,6 +41,7 @@
   --danger: #F2777E;
   --lamp-busy: #FFC14D;
   --brushed: rgba(255, 255, 255, 0.016);
+  --screw: radial-gradient(circle at 35% 35%, #9AA3AD, #4B525B 70%);
   color-scheme: dark;
 }
 

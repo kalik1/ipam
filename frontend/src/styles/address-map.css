@@ -156,7 +156,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #9AA3AD, #4B525B 70%);
+    background: var(--screw);
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
   }
   .faceplate .screw::after {

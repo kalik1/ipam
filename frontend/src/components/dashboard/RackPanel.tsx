@@ -88,7 +88,7 @@ interface RackPanelProps {
 
 export function RackPanel({ rows, live, fiberClass }: RackPanelProps) {
   return (
-    <section className={cx('panel rack hud', fiberClass)} aria-label="Subnets">
+    <section className={cx('panel rack hud fiber', fiberClass)} aria-label="Subnets">
       <div className="rackhead">
         <h2 className="panel-title">Subnets</h2>
         <span className="vent" aria-hidden="true" />

@@ -25,7 +25,7 @@
     animation: scan-pass-b 1.6s linear 1;
   }
 
-  .mappanel::before {
+  .fiber::before {
     content: "";
     position: absolute;
     left: 0;
@@ -34,18 +34,18 @@
     z-index: 5;
     height: 2px;
     background: linear-gradient(90deg, transparent, #C9FDFF 50%, transparent) no-repeat;
-    background-size: 22% 100%;
+    background-size: var(--fiber-length, 22%) 100%;
     opacity: 0;
     filter: drop-shadow(0 0 4px var(--accent));
     pointer-events: none;
   }
-  .mappanel.rx-a::before {
+  .fiber.rx-a::before {
     opacity: 1;
-    animation: fiber-pulse-a 1.3s linear 1 both;
+    animation: fiber-pulse-a var(--fiber-duration, 1.3s) linear 1 both;
   }
-  .mappanel.rx-b::before {
+  .fiber.rx-b::before {
     opacity: 1;
-    animation: fiber-pulse-b 1.3s linear 1 both;
+    animation: fiber-pulse-b var(--fiber-duration, 1.3s) linear 1 both;
   }
 
   .port.on.seen-a .led {
@@ -286,8 +286,8 @@
   .sweep {
     display: none;
   }
-  .mappanel.rx-a::before,
-  .mappanel.rx-b::before {
+  .fiber.rx-a::before,
+  .fiber.rx-b::before {
     opacity: 0;
   }
 }
