@@ -2,7 +2,7 @@ import type { Device, Subnet } from '@/types'
 import { ipToNumber } from './ip'
 
 export interface SearchableDevice extends Pick<Device, 'id' | 'ip' | 'mac' | 'hostname' | 'status'> {
-  subnet: Pick<Subnet, 'id' | 'name' | 'cidr'> | null
+  subnet?: Pick<Subnet, 'id' | 'name' | 'cidr'> | null
 }
 
 function compactMac(value: string): string {

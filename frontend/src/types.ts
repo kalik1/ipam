@@ -41,7 +41,7 @@ export interface Device {
   hostname: string
   vendor: string
   subnetId: number | null
-  subnet: Subnet | null
+  subnet?: Subnet | null
   status: 'online' | 'offline'
   lastSeen: string
   notes: string
