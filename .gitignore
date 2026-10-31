@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+
+backend/data/
+*.sqlite
+*.sqlite-journal
+
+.env
+.env.*
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

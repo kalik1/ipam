@@ -1,0 +1,19 @@
+{
+  "name": "ipam-scan-agent",
+  "version": "1.0.0",
+  "description": "Mock scan agent for the IPAM app. Stand-in for the future multi-platform agent (linux/windows/ios/android) that will scan real networks.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan": "node src/agent.ts",
+    "ws": "node src/ws-agent.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "mikrotik-api": "^0.2.0"
+  }
+}

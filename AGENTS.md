@@ -1,0 +1,76 @@
+# AGENTS.md
+
+## Project overview
+
+IPAM (IP Address Management) local tool, composed of three subprojects plus a shared API contract:
+
+- `backend/` — NestJS 11 + TypeORM + SQLite (default) or Postgres. Port 3000, base path `/api/v1`. Auth: JWT for the web UI (`POST /auth/login`), `X-API-Key` header for scan agents (`POST /scan/reports`).
+- `frontend/` — Vite + React 19 + TypeScript + Tailwind 4. Port 5173, proxies `/api` to the backend.
+- `agent/` — mock scan agent, plain Node 24 with native TypeScript type stripping (zero runtime deps). Stand-in for the future multi-platform agent (linux/windows/ios/android) that will scan real networks and report via the authenticated API.
+- `API.md` — the API contract. It is the source of truth for routes, status codes, and JSON shapes. Read it before touching any of the three subprojects.
+
+## Setup commands
+
+```bash
+# backend (port 3000)
+cd backend && npm install && npm run start:dev
+
+# frontend (port 5173, proxies /api -> :3000)
+cd frontend && npm install && npm run dev
+
+# agent (needs a running backend and an API key)
+cd agent && npm install && npm run scan -- --api-key ipam-... --agent-name myagent
+```
+
+- The backend seeds automatically on first start (empty `backend/data/ipam.sqlite`): user `admin`/`admin`, demo VLANs/subnets/devices, and one API key named `seed` whose full value is printed once to the console.
+- For a fresh re-seed: stop the backend and delete `backend/data/ipam.sqlite`.
+- Node 24 is required (the agent relies on native TS type stripping: `node src/agent.ts`).
+
+## Build and test commands
+
+| Subproject | Build | Test |
+|---|---|---|
+| `backend/` | `npm run build` | `npm test` (jest) |
+| `frontend/` | `npm run build` (tsc -b && vite build) | `npm test` (vitest) |
+| `agent/` | `npm run typecheck` | none (verified e2e manually) |
+
+Run build and tests in every subproject you touch. All must pass before you are done.
+
+## Code style
+
+- TypeScript strict mode everywhere; no `any` unless unavoidable.
+- No comments except for genuinely complex logic.
+- No emojis in code or docs.
+- Small, focused functions; follow the existing module layout (NestJS modules: controller + service + DTOs with class-validator).
+- Backend date columns use `type: 'datetime'` (portable across sqlite and postgres; better-sqlite3 rejects `timestamp`).
+- Frontend: dark theme (slate-950 background, slate-900 cards, indigo accent); new pages/components follow the patterns in `frontend/src/components/` and `frontend/src/pages/`.
+
+## Testing instructions
+
+- Backend unit tests live next to the code (`*.spec.ts`): cidr lib, api-key lib, scan upsert. Add tests for the code you change, even if not asked.
+- Frontend tests: `frontend/src/lib/format.test.ts` (vitest). Test pure helpers; UI is verified by build + manual check.
+- The cidr lib (`backend/src/lib/cidr.ts`) is dependency-free and pure — test edge cases: /24, /30, /31, /32, invalid inputs.
+- Integration check (manual, when touching auth/scan/proxy): start backend + frontend, then verify through the Vite proxy (`http://localhost:5173/api/v1/...`): login returns a token, `GET /summary` with the token returns seeded data, `POST /scan/reports` with a valid `X-API-Key` upserts devices, invalid key returns 401.
+
+## Security considerations
+
+- API keys: only the sha256 hash is stored (`ApiKey.keyHash`); the full key is returned exactly once, at creation. Never log full keys except the single seed-time log.
+- JWT secret comes from `JWT_SECRET` (default `dev-secret-change-me`); set a real value before exposing the app.
+- The global `JwtAuthGuard` protects every route except those marked `@Public()` (`/auth/login`, `POST /scan/reports`). Keep that list minimal.
+- The DB file `backend/data/ipam.sqlite` contains the demo credentials — treat it as local-only.
+
+## Environment variables (backend)
+
+| Var | Default | Purpose |
+|---|---|---|
+| `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
+| `PG_HOST` / `PG_PORT` | `localhost` / `5432` | Postgres connection |
+| `PG_USER` / `PG_PASS` / `PG_DB` | `postgres` / `''` / `ipam` | Postgres credentials |
+| `JWT_SECRET` | `dev-secret-change-me` | JWT signing secret |
+
+## Conventions
+
+- The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP).
+- Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s).
+- `API.md` and this file must stay in sync when routes or behaviors change.
+- Git repo: https://github.com/kalik1/ipam (branch `main`). Commit or push only when asked.
