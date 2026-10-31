@@ -19,7 +19,7 @@ function PortButton<D extends AddressMapDevice>({
   slot,
   cable,
   label,
-  selected = false,
+  selected,
   hovered = false,
   crosshair = false,
   bootIndex = 0,
