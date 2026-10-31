@@ -223,6 +223,9 @@
   .allocbar .seg.off {
     opacity: 0.42;
   }
+  .allocbar .seg.occ {
+    background: var(--text-2);
+  }
   .allocbar .seg.res {
     background: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 5px);
   }
@@ -261,6 +264,9 @@
   }
   .sw.off {
     opacity: 0.45;
+  }
+  .sw.occ {
+    background: var(--text-2);
   }
   .sw.res {
     background: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 4px), var(--well);

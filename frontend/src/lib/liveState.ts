@@ -31,6 +31,7 @@ export interface LiveState {
   agents: LiveAgent[]
   agentsLoaded: boolean
   sweeps: Pulses
+  anySweep: Pulse
   flashes: Pulses
   plugs: Pulses
   fades: Pulses
@@ -67,6 +68,7 @@ export const INITIAL_LIVE_STATE: LiveState = {
   agents: [],
   agentsLoaded: false,
   sweeps: {},
+  anySweep: { count: 0, seq: 0 },
   flashes: {},
   plugs: {},
   fades: {},
@@ -103,6 +105,7 @@ function applyScan(state: LiveState, scan: ScanReportData): LiveState {
   return {
     ...state,
     sweeps: pulse(state.sweeps, subnetIds, state.received),
+    anySweep: subnetIds.length > 0 ? { count: state.anySweep.count + 1, seq: state.received } : state.anySweep,
     flashes: pulse(state.flashes, deviceIds, state.received),
     scans: [scan, ...state.scans].slice(0, RECENT_SCANS_LIMIT),
   }

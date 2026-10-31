@@ -268,6 +268,33 @@ describe('recent scan reports', () => {
   })
 })
 
+describe('any subnet sweep', () => {
+  it('does not pulse before a scan report reaches a subnet', () => {
+    const state = run([
+      event({ type: 'device.created', data: { deviceId: 9, ip: '10.0.0.9', subnetId: 1 } }),
+      scanReport([{ subnetId: null, deviceIds: [40] }]),
+      scanReport([]),
+    ])
+
+    expect(pulseClass(INITIAL_LIVE_STATE.anySweep, INITIAL_LIVE_STATE.settled, 'rx')).toBeUndefined()
+    expect(pulseClass(state.anySweep, state.settled, 'rx')).toBeUndefined()
+  })
+
+  it('pulses once per scan report that reaches any subnet, however many subnets it lists', () => {
+    const first = run([
+      scanReport([
+        { subnetId: 1, deviceIds: [7] },
+        { subnetId: 2, deviceIds: [8] },
+      ]),
+    ])
+    const second = run([scanReport([{ subnetId: 3, deviceIds: [9] }])], first)
+
+    expect(pulseClass(first.anySweep, first.settled, 'rx')).toBe('rx-a')
+    expect(pulseClass(second.anySweep, second.settled, 'rx')).toBe('rx-b')
+    expect(pulseClass(run([{ kind: 'settle', seq: 2 }], second).anySweep, 2, 'rx')).toBeUndefined()
+  })
+})
+
 describe('devicePulseClass', () => {
   it('names every running animation of a device and nothing for a quiet one', () => {
     const state = run([
