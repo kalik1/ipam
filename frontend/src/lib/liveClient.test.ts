@@ -15,7 +15,7 @@ function sseResponse(chunks: string[], signal: AbortSignal | null | undefined, k
   return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
 }
 
-function harness(replies: Reply[], options: { tokens?: Array<string | null>; keepOpen?: boolean } = {}) {
+function harness(replies: Reply[], options: { tokens?: Array<string | null>; keepOpen?: boolean; idleTimeoutMs?: number } = {}) {
   const controller = new AbortController()
   const log: string[] = []
   const requests: Array<{ url: string; authorization: string | null }> = []
@@ -28,6 +28,7 @@ function harness(replies: Reply[], options: { tokens?: Array<string | null>; kee
     onStatus: (status) => log.push(`status:${status}`),
     onEvent: (event) => log.push(`event:${event.type}`),
     onUnauthorized: () => log.push('unauthorized'),
+    idleTimeoutMs: options.idleTimeoutMs,
     fetch: async (input, init) => {
       requests.push({ url: String(input), authorization: new Headers(init?.headers).get('Authorization') })
       const reply = replies.shift()
@@ -86,6 +87,14 @@ describe('runLiveClient', () => {
       'status:down',
       'wait:2000',
     ])
+  })
+
+  it('drops a connection that stays silent past the idle timeout and reconnects', async () => {
+    const { run, log, requests } = harness([[': keepalive\n\n'], new TypeError('Failed to fetch')], { keepOpen: true, idleTimeoutMs: 20 })
+    await run
+
+    expect(requests).toHaveLength(2)
+    expect(log).toEqual(['status:open', 'status:down', 'wait:1000', 'status:down', 'wait:2000'])
   })
 
   it('stops quietly when aborted while the stream is open', async () => {

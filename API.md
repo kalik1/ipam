@@ -360,7 +360,7 @@ id: 3
 data: {"agent":"hq-scanner","at":"2026-10-31T10:00:00.000Z"}
 
 ```
-- Keepalive: ogni 15s il server invia il commento `: keepalive`. I commenti non sono eventi.
+- Keepalive: ogni 15s il server invia il commento `: keepalive`. I commenti non sono eventi. Il client considera morta una connessione senza dati per 45s (tre keepalive persi), la chiude e si ricollega.
 - Nessun replay: un client riceve solo gli eventi pubblicati mentre è connesso (`Last-Event-ID` non è supportato). Dopo una riconnessione rileggere lo stato via REST (es. `GET /agents`).
 - I client devono ignorare i tipi di evento che non conoscono.
 
