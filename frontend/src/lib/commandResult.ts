@@ -13,6 +13,10 @@ export type CommandRun =
   | { status: 'timeout' }
   | { status: 'error'; message: string }
 
+export function isRunPending(run: CommandRun): boolean {
+  return run.status === 'sending' || run.status === 'waiting'
+}
+
 function resultFromEvent(event: CommandResultEvent, receivedAt: string): AgentResult {
   if (event.ok) return { id: event.commandId, ok: true, receivedAt }
   return { id: event.commandId, ok: false, error: event.error ?? 'Unknown error', receivedAt }

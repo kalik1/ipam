@@ -45,4 +45,8 @@ describe('pre-paint theme script in index.html', () => {
     const expected = resolveTheme(stored, systemDark)
     expect(runPrePaintScript(stored, systemDark)).toEqual({ classes: [expected], colorScheme: expected })
   })
+
+  it('reads the choice stored under THEME_KEY, the key the theme toggle writes', () => {
+    expect(indexHtml).toContain(`localStorage.getItem('${THEME_KEY}')`)
+  })
 })
