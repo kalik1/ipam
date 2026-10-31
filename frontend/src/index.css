@@ -6,6 +6,7 @@
 @import "./styles/search.css";
 @import "./styles/network-pages.css";
 @import "./styles/live.css";
+@import "./styles/discovery-pages.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));

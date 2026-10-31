@@ -20,6 +20,17 @@ export function formatDay(iso: string): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+export function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'unknown'
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 export type UtilizationLevel = 'ok' | 'warn' | 'danger'
 
 export function utilizationColor(percent: number): UtilizationLevel {

@@ -7,25 +7,27 @@ import {
   updateConnector,
   type ConnectorBody,
 } from '@/lib/api'
-import { timeAgo } from '@/lib/format'
-import {
-  CONNECTOR_FIELDS,
-  CONNECTOR_TYPES,
-  parseJsonObject,
-  summarizeConfig,
-} from '@/lib/connectors'
+import { CONNECTOR_FIELDS, CONNECTOR_TYPES, parseJsonObject, summarizeConfig } from '@/lib/connectors'
+import { formatDay, timeAgo } from '@/lib/format'
 import type { Connector } from '@/types'
+import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { FormField, inputClass } from '@/components/FormField'
 import { Modal } from '@/components/Modal'
+import { Panel, PanelHeader } from '@/components/Panel'
+import { Table, TableMessage } from '@/components/Table'
+import { PageActions } from '@/components/shell/PageActions'
+
+const COLUMNS = 6
+
+type ConnectorFormState = { mode: 'create' } | { mode: 'edit'; connector: Connector }
 
 export default function ConnectorsPage() {
   const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState<Connector | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState<ConnectorFormState | null>(null)
   const [toDelete, setToDelete] = useState<Connector | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -62,101 +64,94 @@ export default function ConnectorsPage() {
     }
   }
 
-  function closeModal() {
-    setShowCreate(false)
-    setEditing(null)
+  function closeForm() {
+    setForm(null)
     void load()
   }
 
+  const editing = form?.mode === 'edit' ? form.connector : null
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-slate-400">Connection profiles that can be scheduled on agents</p>
-        <button
-          onClick={() => {
-            setEditing(null)
-            setShowCreate(true)
-          }}
-          className="btn btn-primary"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New connector
-        </button>
-      </div>
+    <>
+      <PageActions>
+        <Button variant="primary" onClick={() => setForm({ mode: 'create' })}>
+          Add connector
+        </Button>
+      </PageActions>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+        <p className="alert" role="alert">
+          {error}
+        </p>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-800">
+      <Panel aria-label="Connectors">
+        <PanelHeader title="Connectors">
+          <span className="list-count">
+            {loading && connectors.length === 0
+              ? 'Loading'
+              : `${connectors.length} connection ${connectors.length === 1 ? 'profile' : 'profiles'} agents can scan`}
+          </span>
+        </PanelHeader>
+        <Table>
+          <thead>
             <tr>
-              <th className="th">Label</th>
-              <th className="th">Name</th>
-              <th className="th">Config</th>
-              <th className="th">Created</th>
-              <th className="th">Updated</th>
-              <th className="th text-right">Actions</th>
+              <th>Label</th>
+              <th>Type</th>
+              <th>Config</th>
+              <th>Created</th>
+              <th>Updated</th>
+              <th className="num">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                  Loading...
-                </td>
-              </tr>
+          <tbody>
+            {loading && connectors.length === 0 ? (
+              <TableMessage colSpan={COLUMNS}>Loading connectors...</TableMessage>
             ) : connectors.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState title="No connectors" message="Create a connector to define a connection profile for agents" />
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>
+                <EmptyState title="No connectors" message="Add a connector to give agents a device they can scan" />
+              </TableMessage>
             ) : (
               connectors.map((connector) => (
-                <tr key={connector.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-medium text-slate-200">{connector.label || '—'}</td>
-                  <td className="td">
-                    <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{connector.name}</span>
+                <tr key={connector.id}>
+                  <td className="font-semibold">{connector.label || <span className="cell-muted">No label</span>}</td>
+                  <td>
+                    <span className="tag">{connector.name}</span>
                   </td>
-                  <td className="td font-mono text-xs text-slate-400">{summarizeConfig(connector.name, connector.config)}</td>
-                  <td className="td tabular-nums">{new Date(connector.createdAt).toLocaleDateString()}</td>
-                  <td className="td">{timeAgo(connector.updatedAt)}</td>
-                  <td className="td text-right">
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => {
-                          setShowCreate(false)
-                          setEditing(connector)
-                        }}
-                        className="text-indigo-400 transition-colors hover:text-indigo-300"
+                  <td className="mono cell-trunc text-fg-2">{summarizeConfig(connector.name, connector.config)}</td>
+                  <td className="mono text-fg-2">{formatDay(connector.createdAt)}</td>
+                  <td className="text-fg-2">{timeAgo(connector.updatedAt)}</td>
+                  <td>
+                    <div className="row-actions">
+                      <Button
+                        variant="ghost"
+                        aria-label={`Edit connector ${connector.label || connector.name}`}
+                        onClick={() => setForm({ mode: 'edit', connector })}
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="danger"
+                        aria-label={`Delete connector ${connector.label || connector.name}`}
                         onClick={() => setToDelete(connector)}
-                        className="text-red-400 transition-colors hover:text-red-300"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </Panel>
 
-      {(showCreate || editing) && (
-        <Modal title={editing ? 'Edit connector' : 'New connector'} onClose={closeModal}>
+      {form && (
+        <Modal title={editing ? 'Edit connector' : 'Add connector'} onClose={closeForm}>
           <ConnectorForm
             key={editing?.id ?? 'new'}
             initial={editing}
-            onClose={closeModal}
+            onClose={closeForm}
             onSubmit={async (body) => {
               if (editing) {
                 await updateConnector(editing.id, body)
@@ -171,14 +166,24 @@ export default function ConnectorsPage() {
       {toDelete && (
         <ConfirmDialog
           title="Delete connector"
-          message={`Delete connector "${toDelete.label || toDelete.name}"? Agents using it will lose the assignment.`}
+          message={`Delete connector "${toDelete.label || toDelete.name}"? Agents lose their assignments to it.`}
+          confirmLabel="Delete connector"
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setToDelete(null)}
         />
       )}
-    </div>
+    </>
   )
+}
+
+function fieldValues(name: string, initial: Connector | null): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const field of CONNECTOR_FIELDS[name] ?? []) {
+    const value = initial?.config[field.key]
+    values[field.key] = value == null ? (field.default ?? '') : String(value)
+  }
+  return values
 }
 
 function ConnectorForm({
@@ -192,17 +197,7 @@ function ConnectorForm({
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [label, setLabel] = useState(initial?.label ?? '')
-  const [fields, setFields] = useState<Record<string, string>>(() => {
-    const next: Record<string, string> = {}
-    const defs = CONNECTOR_FIELDS[initial?.name ?? '']
-    if (defs) {
-      for (const field of defs) {
-        const value = initial?.config[field.key]
-        next[field.key] = value == null ? (field.default ?? '') : String(value)
-      }
-    }
-    return next
-  })
+  const [fields, setFields] = useState<Record<string, string>>(() => fieldValues(initial?.name ?? '', initial))
   const [rawConfig, setRawConfig] = useState(() =>
     initial && !CONNECTOR_FIELDS[initial.name] ? JSON.stringify(initial.config, null, 2) : '',
   )
@@ -210,24 +205,16 @@ function ConnectorForm({
   const [saving, setSaving] = useState(false)
 
   const defs = CONNECTOR_FIELDS[name]
-  const isKnown = defs !== undefined
 
   useEffect(() => {
-    const nextDefs = CONNECTOR_FIELDS[name]
-    if (!nextDefs) return
-    const next: Record<string, string> = {}
-    for (const field of nextDefs) {
-      const value = initial?.config[field.key]
-      next[field.key] = value == null ? (field.default ?? '') : String(value)
-    }
-    setFields(next)
+    if (CONNECTOR_FIELDS[name]) setFields(fieldValues(name, initial))
   }, [name, initial])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmedName = name.trim()
     if (!trimmedName) {
-      setError('Name is required')
+      setError('Type is required')
       return
     }
     let config: Record<string, unknown>
@@ -268,12 +255,14 @@ function ConnectorForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="form-grid">
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
+        <p className="alert" role="alert">
+          {error}
+        </p>
       )}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="Name (type)" hint="Connector type, e.g. mikrotik">
+      <div className="cols-2">
+        <FormField label="Type" hint="Connector type, for example mikrotik">
           <input
             className={inputClass}
             value={name}
@@ -287,43 +276,38 @@ function ConnectorForm({
             ))}
           </datalist>
         </FormField>
-        <FormField label="Label" hint="Human-readable name shown in lists">
-          <input
-            className={inputClass}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Router 1"
-          />
+        <FormField label="Label" hint="Name shown in lists">
+          <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Core router" />
         </FormField>
       </div>
-      {isKnown &&
-        defs.map((field) => (
-          <FormField key={field.key} label={field.label}>
-            <input
-              type={field.type === 'number' ? 'number' : field.type === 'password' ? 'password' : 'text'}
-              className={inputClass}
-              value={fields[field.key] ?? ''}
-              onChange={(e) => setFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-            />
-          </FormField>
-        ))}
-      {!isKnown && (
-        <FormField label="Config (JSON)" hint='JSON object, e.g. {"host": "192.168.1.1"}'>
+      {defs ? (
+        <div className="cols-2">
+          {defs.map((field) => (
+            <FormField key={field.key} label={field.label}>
+              <input
+                type={field.type === 'number' ? 'number' : field.type === 'password' ? 'password' : 'text'}
+                className={field.type === 'number' ? `${inputClass} mono` : inputClass}
+                value={fields[field.key] ?? ''}
+                onChange={(e) => setFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              />
+            </FormField>
+          ))}
+        </div>
+      ) : (
+        <FormField label="Config (JSON)" hint='JSON object, for example {"host": "192.168.1.1"}'>
           <textarea
-            className={`${inputClass} min-h-24 font-mono`}
+            className={`${inputClass} mono`}
             value={rawConfig}
             onChange={(e) => setRawConfig(e.target.value)}
             placeholder='{"host": "192.168.1.1"}'
           />
         </FormField>
       )}
-      <div className="flex justify-end gap-3 pt-2">
-        <button type="button" onClick={onClose} className="btn btn-secondary">
-          Cancel
-        </button>
-        <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? 'Saving...' : initial ? 'Save changes' : 'Create connector'}
-        </button>
+      <div className="form-actions">
+        <Button onClick={onClose}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={saving} aria-busy={saving}>
+          {saving ? 'Saving...' : initial ? 'Save changes' : 'Add connector'}
+        </Button>
       </div>
     </form>
   )
