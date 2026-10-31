@@ -7,7 +7,7 @@ interface Segment {
   color?: string
 }
 
-export function AllocationBar({ counters, cable }: { counters: AddressCounters; cable: string }) {
+export function AllocationSegments({ counters, cable }: { counters: AddressCounters; cable: string }) {
   const segments: Segment[] = [
     { key: 'on', className: 'seg on', count: counters.occupiedOnline, color: cable },
     { key: 'off', className: 'seg off', count: counters.occupiedOffline, color: cable },
@@ -16,14 +16,20 @@ export function AllocationBar({ counters, cable }: { counters: AddressCounters; 
   ]
   const label = `${counters.occupiedOnline} occupied online, ${counters.occupiedOffline} occupied offline, ${counters.reserved} reserved, ${counters.free} free of ${counters.usable} usable addresses`
   return (
+    <div className="allocbar" role="img" aria-label={label}>
+      {segments
+        .filter((segment) => segment.count > 0)
+        .map((segment) => (
+          <span key={segment.key} className={segment.className} style={{ flexGrow: segment.count, backgroundColor: segment.color }} />
+        ))}
+    </div>
+  )
+}
+
+export function AllocationBar({ counters, cable }: { counters: AddressCounters; cable: string }) {
+  return (
     <>
-      <div className="allocbar" role="img" aria-label={label}>
-        {segments
-          .filter((segment) => segment.count > 0)
-          .map((segment) => (
-            <span key={segment.key} className={segment.className} style={{ flexGrow: segment.count, backgroundColor: segment.color }} />
-          ))}
-      </div>
+      <AllocationSegments counters={counters} cable={cable} />
       <div className="legend">
         <span className="lg">
           <span className="sw" style={{ backgroundColor: cable }} />
