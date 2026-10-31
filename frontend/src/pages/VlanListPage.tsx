@@ -2,15 +2,28 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getErrorMessage } from '@/lib/api'
 import type { Vlan } from '@/types'
-import { Modal } from '@/components/Modal'
+import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { FormField, inputClass } from '@/components/FormField'
 import { EmptyState } from '@/components/EmptyState'
+import { FormField, inputClass } from '@/components/FormField'
+import { Modal } from '@/components/Modal'
+import { Panel, PanelHeader } from '@/components/Panel'
+import { Table, TableMessage } from '@/components/Table'
+import { Cable } from '@/components/VlanChip'
+import { PageActions } from '@/components/shell/PageActions'
 
 interface VlanFormState {
   mode: 'create' | 'edit'
   vlan?: Vlan
 }
+
+interface VlanBody {
+  vlanId: number
+  name: string
+  description: string
+}
+
+const COLUMNS = 5
 
 export default function VlanListPage() {
   const [vlans, setVlans] = useState<Vlan[]>([])
@@ -37,7 +50,7 @@ export default function VlanListPage() {
     void load()
   }, [load])
 
-  async function handleSave(body: { vlanId: number; name: string; description?: string }) {
+  async function handleSave(body: VlanBody) {
     if (form?.mode === 'edit' && form.vlan) {
       const { data } = await api.put<Vlan>(`/vlans/${form.vlan.vlanId}`, {
         name: body.name,
@@ -67,87 +80,82 @@ export default function VlanListPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-slate-400">Virtual LANs and their subnets</p>
-        <button
-          onClick={() => setForm({ mode: 'create' })}
-          className="btn btn-primary"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New VLAN
-        </button>
-      </div>
+    <>
+      <PageActions>
+        <Button variant="primary" onClick={() => setForm({ mode: 'create' })}>
+          Add VLAN
+        </Button>
+      </PageActions>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+        <p className="alert" role="alert">
+          {error}
+        </p>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-800">
+      <Panel aria-label="VLANs">
+        <PanelHeader title="VLANs">
+          <span className="list-count">{loading ? 'Loading' : `${vlans.length} ${vlans.length === 1 ? 'VLAN' : 'VLANs'}`}</span>
+        </PanelHeader>
+        <Table>
+          <thead>
             <tr>
-              <th className="th w-24">VLAN ID</th>
-              <th className="th">Name</th>
-              <th className="th">Description</th>
-              <th className="th w-32">Created</th>
-              <th className="th text-right">Actions</th>
+              <th>VLAN ID</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Created</th>
+              <th className="num">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  Loading...
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>Loading VLANs...</TableMessage>
             ) : vlans.length === 0 ? (
-              <tr>
-                <td colSpan={5}>
-                  <EmptyState title="No VLANs" message="Create your first VLAN to get started" />
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>
+                <EmptyState title="No VLANs" message="Add a VLAN to group subnets by 802.1Q tag" />
+              </TableMessage>
             ) : (
               vlans.map((vlan) => (
-                <tr key={vlan.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-mono text-indigo-400">{vlan.vlanId}</td>
-                  <td className="td font-medium">
-                    <Link to={`/vlans/${vlan.id}`} className="text-slate-200 transition-colors hover:text-indigo-400">
+                <tr key={vlan.id}>
+                  <td>
+                    <span className="cell-cable">
+                      <Cable tag={vlan.vlanId} />
+                      <span className="mono">{vlan.vlanId}</span>
+                    </span>
+                  </td>
+                  <td>
+                    <Link to={`/vlans/${vlan.id}`} className="cell-link">
                       {vlan.name}
                     </Link>
                   </td>
-                  <td className="td">{vlan.description || '—'}</td>
-                  <td className="td tabular-nums">{new Date(vlan.createdAt).toLocaleDateString()}</td>
-                  <td className="td whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setForm({ mode: 'edit', vlan })}
-                      className="mr-3 text-slate-400 transition-colors hover:text-slate-200"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setToDelete(vlan)}
-                      className="text-red-400 transition-colors hover:text-red-300"
-                    >
-                      Delete
-                    </button>
+                  <td className="cell-trunc text-fg-2" title={vlan.description || undefined}>
+                    {vlan.description || <span className="cell-muted">None</span>}
+                  </td>
+                  <td className="mono text-fg-2">{new Date(vlan.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <div className="row-actions">
+                      <Button
+                        variant="ghost"
+                        aria-label={`Edit VLAN ${vlan.vlanId}`}
+                        onClick={() => setForm({ mode: 'edit', vlan })}
+                      >
+                        Edit
+                      </Button>
+                      <Button variant="danger" aria-label={`Delete VLAN ${vlan.vlanId}`} onClick={() => setToDelete(vlan)}>
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </Panel>
 
       {form && (
-        <Modal title={form.mode === 'edit' ? 'Edit VLAN' : 'New VLAN'} onClose={() => setForm(null)}>
-          <VlanForm
-            initial={form.mode === 'edit' ? form.vlan : undefined}
-            onSubmit={handleSave}
-            onClose={() => setForm(null)}
-          />
+        <Modal title={form.mode === 'edit' ? 'Edit VLAN' : 'Add VLAN'} onClose={() => setForm(null)}>
+          <VlanForm initial={form.mode === 'edit' ? form.vlan : undefined} onSubmit={handleSave} onClose={() => setForm(null)} />
         </Modal>
       )}
 
@@ -155,12 +163,13 @@ export default function VlanListPage() {
         <ConfirmDialog
           title="Delete VLAN"
           message={`Delete VLAN ${toDelete.vlanId} (${toDelete.name})? This cannot be undone.`}
+          confirmLabel="Delete VLAN"
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setToDelete(null)}
         />
       )}
-    </div>
+    </>
   )
 }
 
@@ -170,7 +179,7 @@ function VlanForm({
   onClose,
 }: {
   initial?: Vlan
-  onSubmit: (body: { vlanId: number; name: string; description?: string }) => Promise<void>
+  onSubmit: (body: VlanBody) => Promise<void>
   onClose: () => void
 }) {
   const [vlanId, setVlanId] = useState(initial ? String(initial.vlanId) : '')
@@ -189,7 +198,7 @@ function VlanForm({
     setSaving(true)
     setError('')
     try {
-      await onSubmit({ vlanId: id, name: name.trim(), description: description.trim() || undefined })
+      await onSubmit({ vlanId: id, name: name.trim(), description: description.trim() })
       onClose()
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to save VLAN'))
@@ -199,14 +208,18 @@ function VlanForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-      <FormField label="VLAN ID" hint={initial ? 'VLAN ID cannot be changed' : 'Between 1 and 4094'}>
+    <form onSubmit={handleSubmit} className="form-grid">
+      {error && (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      )}
+      <FormField label="VLAN ID" hint={initial ? 'The VLAN ID cannot be changed' : 'Between 1 and 4094'}>
         <input
           type="number"
           min={1}
           max={4094}
-          className={inputClass}
+          className={`${inputClass} mono`}
           value={vlanId}
           onChange={(e) => setVlanId(e.target.value)}
           disabled={!!initial}
@@ -219,13 +232,11 @@ function VlanForm({
       <FormField label="Description">
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} />
       </FormField>
-      <div className="flex justify-end gap-3 pt-2">
-        <button type="button" onClick={onClose} className="btn btn-secondary">
-          Cancel
-        </button>
-        <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? 'Saving...' : 'Save'}
-        </button>
+      <div className="form-actions">
+        <Button onClick={onClose}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={saving} aria-busy={saving}>
+          {saving ? 'Saving...' : initial ? 'Save changes' : 'Add VLAN'}
+        </Button>
       </div>
     </form>
   )

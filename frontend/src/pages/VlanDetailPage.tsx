@@ -2,9 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import axios from 'axios'
 import api, { getErrorMessage } from '@/lib/api'
+import { subnetOccupancy, sumOccupancy } from '@/lib/occupancy'
+import { vlanColor } from '@/lib/vlan'
 import type { VlanDetail } from '@/types'
-import { UtilizationBar } from '@/components/UtilizationBar'
 import { EmptyState } from '@/components/EmptyState'
+import { OccupancyMeter } from '@/components/OccupancyMeter'
+import { Panel, PanelHeader } from '@/components/Panel'
+import { Table, TableMessage } from '@/components/Table'
+import { VlanChip } from '@/components/VlanChip'
+
+const COLUMNS = 7
 
 export default function VlanDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -32,88 +39,108 @@ export default function VlanDetailPage() {
   }, [load])
 
   if (error) {
-    return <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+    return (
+      <p className="alert" role="alert">
+        {error}
+      </p>
+    )
   }
   if (notFound) {
-    return <EmptyState title="VLAN not found" message="It may have been deleted" />
+    return (
+      <Panel>
+        <EmptyState title="VLAN not found" message="It may have been deleted" />
+      </Panel>
+    )
   }
   if (!vlan) {
-    return <p className="text-sm text-slate-500">Loading...</p>
+    return <p className="text-fg-3">Loading VLAN...</p>
   }
 
-  const cards = [
+  const color = vlanColor(vlan.vlanId)
+  const total = sumOccupancy(vlan.subnets)
+  const facts = [
+    { label: 'VLAN ID', value: String(vlan.vlanId) },
     { label: 'Subnets', value: String(vlan.subnets.length) },
-    { label: 'Devices', value: String(vlan.deviceCount) },
+    { label: 'Occupied', value: `${total.occupied} (${total.percent}%)` },
+    { label: 'Usable addresses', value: String(total.usable) },
     { label: 'Created', value: new Date(vlan.createdAt).toLocaleDateString() },
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <nav className="flex items-center gap-2 text-sm text-slate-500">
-          <Link to="/vlans" className="transition-colors hover:text-slate-300">
-            VLANs
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="text-slate-300">{vlan.name}</span>
-        </nav>
-        <div className="mt-2 flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">{vlan.name}</h1>
-          <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 font-mono text-xs text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
-            VLAN {vlan.vlanId}
-          </span>
+    <>
+      <Panel hud className="vlanhead brushed" aria-label="VLAN">
+        <span className="vlanghost" aria-hidden="true">
+          {vlan.vlanId}
+        </span>
+        <span className="cscrew tl" aria-hidden="true" />
+        <span className="cscrew tr" aria-hidden="true" />
+        <span className="cscrew bl" aria-hidden="true" />
+        <span className="cscrew br" aria-hidden="true" />
+        <div className="idblock">
+          <h1 className="heading">{vlan.name}</h1>
+          <VlanChip vlan={vlan} />
+          {vlan.description && <p className="desc">{vlan.description}</p>}
         </div>
-        {vlan.description && <p className="mt-1 text-sm text-slate-400">{vlan.description}</p>}
-      </div>
+        <dl className="vlanfacts">
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd className="mono">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </Panel>
 
-      <div className="grid grid-cols-3 gap-4">
-        {cards.map((card) => (
-          <div key={card.label} className="card p-5">
-            <p className="text-[13px] font-medium text-slate-400">{card.label}</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-slate-50">{card.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="card overflow-hidden">
-        <h2 className="border-b border-slate-800 px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Subnets
-        </h2>
-        {vlan.subnets.length === 0 ? (
-          <EmptyState title="No subnets" message="This VLAN has no subnets yet" />
-        ) : (
-          <table className="w-full text-left">
-            <thead className="border-b border-slate-800">
-              <tr>
-                <th className="th">Name</th>
-                <th className="th">CIDR</th>
-                <th className="th">Gateways</th>
-                <th className="th">Utilization</th>
-                <th className="th">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {vlan.subnets.map((subnet) => (
-                <tr key={subnet.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-medium">
-                    <Link to={`/subnets/${subnet.id}`} className="text-slate-200 transition-colors hover:text-indigo-400">
-                      {subnet.name}
-                    </Link>
-                  </td>
-                  <td className="td font-mono text-indigo-400">{subnet.cidr}</td>
-                  <td className="td font-mono text-amber-400">
-                    {subnet.gateways.length > 0 ? subnet.gateways.join(', ') : '—'}
-                  </td>
-                  <td className="td">
-                    <UtilizationBar used={subnet.usedHosts} total={subnet.totalHosts} />
-                  </td>
-                  <td className="td tabular-nums">{new Date(subnet.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+      <Panel aria-label="Subnets in this VLAN">
+        <PanelHeader title="Subnets in this VLAN">
+          <span className="list-count">
+            {vlan.subnets.length} {vlan.subnets.length === 1 ? 'subnet' : 'subnets'}
+          </span>
+        </PanelHeader>
+        <Table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>CIDR</th>
+              <th>Gateways</th>
+              <th className="num">DHCP pools</th>
+              <th className="num">Occupied</th>
+              <th className="num">Usable</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vlan.subnets.length === 0 ? (
+              <TableMessage colSpan={COLUMNS}>
+                <EmptyState title="No subnets" message="Assign a subnet to this VLAN from the subnets page" />
+              </TableMessage>
+            ) : (
+              vlan.subnets.map((subnet) => {
+                const occupancy = subnetOccupancy(subnet)
+                return (
+                  <tr key={subnet.id}>
+                    <td>
+                      <Link to={`/subnets/${subnet.id}`} className="cell-link">
+                        {subnet.name}
+                      </Link>
+                    </td>
+                    <td className="mono">{subnet.cidr}</td>
+                    <td className="mono text-fg-2">
+                      {subnet.gateways.length > 0 ? subnet.gateways.join(', ') : <span className="cell-muted">None</span>}
+                    </td>
+                    <td className="num mono">{subnet.dhcpPools.length}</td>
+                    <td className="num">
+                      <OccupancyMeter occupancy={occupancy} color={color} />
+                    </td>
+                    <td className="num mono">{occupancy.usable}</td>
+                    <td className="mono text-fg-2">{new Date(subnet.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </Table>
+      </Panel>
+    </>
   )
 }
