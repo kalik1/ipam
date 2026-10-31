@@ -78,12 +78,28 @@ interface AddressMapPanelProps {
   selectedIp: string | null
   hover: number | null
   booting: boolean
+  passClass?: string
+  fiberClass?: string
+  devicePulse?: (deviceId: number) => string | undefined
   onBlockChange: (index: number) => void
   onSelect: (slot: Slot) => void
   onHover: (slot: Slot | null) => void
 }
 
-export function AddressMapPanel({ map, blockIndex, cable, selectedIp, hover, booting, onBlockChange, onSelect, onHover }: AddressMapPanelProps) {
+export function AddressMapPanel({
+  map,
+  blockIndex,
+  cable,
+  selectedIp,
+  hover,
+  booting,
+  passClass,
+  fiberClass,
+  devicePulse,
+  onBlockChange,
+  onSelect,
+  onHover,
+}: AddressMapPanelProps) {
   const block = useMemo(() => map.block(blockIndex), [map, blockIndex])
   const rows = useMemo(() => map.rows(block), [map, block])
   const hoverInBlock = hover !== null && hover >= block.first && hover <= block.last
@@ -92,7 +108,7 @@ export function AddressMapPanel({ map, blockIndex, cable, selectedIp, hover, boo
   const focus = readout((hoverInBlock ? map.slot(hover) : null) ?? (selectedIp ? map.slot(selectedIp) : null))
 
   return (
-    <section className="panel mappanel hud" aria-label="Address map">
+    <section className={cx('panel mappanel hud', fiberClass)} aria-label="Address map">
       <div className="facehead">
         <h2 className="panel-title">Address map</h2>
         <span className="vent" aria-hidden="true" />
@@ -144,6 +160,7 @@ export function AddressMapPanel({ map, blockIndex, cable, selectedIp, hover, boo
             if (!event.currentTarget.contains(event.relatedTarget)) onHover(null)
           }}
         >
+          <span className={cx('sweep', passClass)} aria-hidden="true" />
           <div className="prow" aria-hidden="true">
             <span />
             {[COLUMNS.slice(0, 8), COLUMNS.slice(8)].map((bank, index) => (
@@ -176,6 +193,8 @@ export function AddressMapPanel({ map, blockIndex, cable, selectedIp, hover, boo
                         hovered={cell.value === hover}
                         crosshair={row.first === hoverRow || column === hoverColumn}
                         bootIndex={cell.value - block.first}
+                        column={column}
+                        pulse={cell.device && devicePulse ? devicePulse(cell.device.id) : undefined}
                         onSelect={onSelect}
                         onHover={onHover}
                       />

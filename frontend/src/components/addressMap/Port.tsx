@@ -11,6 +11,8 @@ interface PortProps<D extends AddressMapDevice> {
   hovered?: boolean
   crosshair?: boolean
   bootIndex?: number
+  column?: number
+  pulse?: string
   onSelect?: (slot: AddressSlot<D>) => void
   onHover?: (slot: AddressSlot<D>) => void
 }
@@ -23,14 +25,16 @@ function PortButton<D extends AddressMapDevice>({
   hovered = false,
   crosshair = false,
   bootIndex = 0,
+  column = 0,
+  pulse,
   onSelect,
   onHover,
 }: PortProps<D>) {
-  const style = { '--boot-index': bootIndex } as CSSProperties
+  const style = { '--boot-index': bootIndex, '--col': column } as CSSProperties
   return (
     <button
       type="button"
-      className={cx(portClass(slot), selected && 'sel', hovered ? 'hov' : crosshair && 'xh')}
+      className={cx(portClass(slot), selected && 'sel', hovered ? 'hov' : crosshair && 'xh', pulse)}
       aria-label={label}
       aria-pressed={selected}
       style={style}

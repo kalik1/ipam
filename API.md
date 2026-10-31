@@ -371,6 +371,9 @@ data: {"agent":"hq-scanner","at":"2026-10-31T10:00:00.000Z"}
 | `agent.connected` | `{ "agent": string, "platform": string }` | `hello` valido sul WebSocket, anche quando sostituisce la sessione di un agente con lo stesso nome |
 | `agent.heartbeat` | `{ "agent": string, "at": string (ISO 8601) }` | ogni `ping` di un agente autenticato |
 | `agent.disconnected` | `{ "agent": string }` | chiusura del socket di una sessione attiva, oppure watchdog (nessun ping per 90s); non emesso quando un nuovo `hello` con lo stesso nome sostituisce la sessione |
+| `scan.report` | `{ "agent": string, "source": "report" \| "connector", "receivedAt": string (ISO 8601), "reportId"?: number, "subnets": [{ "subnetId": number \| null, "deviceIds": number[] }] }` | dopo l'upsert dei device di una scansione: `POST /scan/reports` e messaggio WebSocket `report` (`source: "report"`, con `reportId` dello scan report salvato) oppure risultato di un connector con `data.devices` (`source: "connector"`, senza `reportId`). Un evento per scansione, anche con zero device. I device visti sono raggruppati per `subnetId` salvato sul device (`null` = nessuna subnet), ogni id compare una volta. Se la scansione fallisce (es. IP non valido) non viene emesso nulla |
+| `device.created` | `{ "deviceId": number, "ip": string, "subnetId": number \| null }` | device creato da una scansione (prima del relativo `scan.report`) o da un IP riservato importato da un connector (`data.reservedIps`); non emesso per `POST /devices` |
+| `device.offline` | `{ "deviceIds": number[] }` | task schedulato (ogni 60s): un solo evento con esattamente i device appena passati a `offline`; nessun evento se nessun device cambia stato |
 
 ## Summary
 
@@ -424,7 +427,7 @@ data: {"agent":"hq-scanner","at":"2026-10-31T10:00:00.000Z"}
 - I device senza subnet non compaiono nella topologia.
 
 ## Task schedulato
-Ogni 60s: device con `lastSeen` > 5 minuti fa → `status = "offline"`.
+Ogni 60s: device `online` con `lastSeen` > 5 minuti fa → `status = "offline"` (evento live `device.offline`).
 Ogni 30s: per ogni assegnazione di connector abilitata, se `nextRunAt` è scaduto invio del comando `run_connector` all'agente (`lastStatus` = `sent`; `skipped` se l'agente non è connesso) e ricalcolo di `nextRunAt`; i comandi in `sent` vengono risolti (`ok` / `error`) quando l'agente risponde.
 
 ## Seed

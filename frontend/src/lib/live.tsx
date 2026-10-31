@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useReducer, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useReducer, useRef, useState, type Dispatch, type ReactNode } from 'react'
 import api, { TOKEN_KEY } from './api'
 import { runLiveClient } from './liveClient'
 import type { LiveEvent } from './liveEvents'
-import { INITIAL_LIVE_STATE, liveReducer, type LiveState } from './liveState'
+import { INITIAL_LIVE_STATE, PULSE_MS, liveReducer, type LiveAction, type LiveState } from './liveState'
 import type { Agent } from '../types'
 
 type LiveListener = (event: LiveEvent) => void
@@ -17,9 +17,31 @@ function redirectToLogin() {
   window.location.href = '/login'
 }
 
+function useSettledPulses(received: number, dispatch: Dispatch<LiveAction>) {
+  const [timers] = useState(() => new Set<ReturnType<typeof setTimeout>>())
+
+  useEffect(() => {
+    if (received === 0) return
+    const timer = setTimeout(() => {
+      timers.delete(timer)
+      dispatch({ kind: 'settle', seq: received })
+    }, PULSE_MS)
+    timers.add(timer)
+  }, [received, dispatch, timers])
+
+  useEffect(
+    () => () => {
+      timers.forEach(clearTimeout)
+      timers.clear()
+    },
+    [timers],
+  )
+}
+
 export function LiveProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(liveReducer, INITIAL_LIVE_STATE)
   const [listeners] = useState(() => new Set<LiveListener>())
+  useSettledPulses(state.received, dispatch)
 
   useEffect(() => {
     const controller = new AbortController()
