@@ -509,7 +509,7 @@
   }
 
   .minibar {
-    display: block;
+    display: flex;
     height: 3px;
     overflow: hidden;
     border-radius: 2px;
@@ -518,7 +518,10 @@
   }
   .minibar > i {
     display: block;
+    flex: none;
     height: 100%;
-    border-radius: 2px;
+  }
+  .minibar > i.res {
+    background: repeating-linear-gradient(135deg, var(--pool) 0 1px, transparent 1px 3px);
   }
 }

@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getErrorMessage } from '@/lib/api'
-import { subnetOccupancy } from '@/lib/occupancy'
+import { devicesBySubnet, subnetOccupancy } from '@/lib/occupancy'
 import { subnetBody, subnetDraft, vlanOptions, type PoolDraft, type SubnetBody, type SubnetDraft } from '@/lib/subnetForm'
 import { vlanColor } from '@/lib/vlan'
-import type { Subnet, Vlan } from '@/types'
+import type { Subnet, Topology, TopologyDevice, Vlan } from '@/types'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { FormField, inputClass } from '@/components/FormField'
 import { CloseIcon } from '@/components/icons'
 import { Modal } from '@/components/Modal'
-import { OccupancyMeter } from '@/components/OccupancyMeter'
+import { OCCUPANCY_COLUMNS, OccupancyCells, OccupancyHeads } from '@/components/OccupancyMeter'
 import { Panel, PanelHeader } from '@/components/Panel'
 import { Table, TableMessage } from '@/components/Table'
 import { VlanChip } from '@/components/VlanChip'
@@ -22,11 +22,12 @@ interface SubnetFormState {
   subnet?: Subnet
 }
 
-const COLUMNS = 10
+const COLUMNS = 8 + OCCUPANCY_COLUMNS
 
 export default function SubnetListPage() {
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVlans] = useState<Vlan[]>([])
+  const [devices, setDevices] = useState<ReadonlyMap<number, TopologyDevice[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [form, setForm] = useState<SubnetFormState | null>(null)
@@ -36,9 +37,14 @@ export default function SubnetListPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [subnetsRes, vlansRes] = await Promise.all([api.get<Subnet[]>('/subnets'), api.get<Vlan[]>('/vlans')])
+      const [subnetsRes, vlansRes, topologyRes] = await Promise.all([
+        api.get<Subnet[]>('/subnets'),
+        api.get<Vlan[]>('/vlans'),
+        api.get<Topology>('/topology'),
+      ])
       setSubnets(subnetsRes.data)
       setVlans(vlansRes.data)
+      setDevices(devicesBySubnet(topologyRes.data))
       setError('')
     } catch (e) {
       setError(getErrorMessage(e, 'Failed to load subnets'))
@@ -106,8 +112,7 @@ export default function SubnetListPage() {
               <th>Gateways</th>
               <th className="num">DHCP pools</th>
               <th>Network and broadcast</th>
-              <th className="num">Occupied</th>
-              <th className="num">Usable</th>
+              <OccupancyHeads />
               <th>Created</th>
               <th className="num">Actions</th>
             </tr>
@@ -121,7 +126,7 @@ export default function SubnetListPage() {
               </TableMessage>
             ) : (
               subnets.map((subnet) => {
-                const occupancy = subnetOccupancy(subnet)
+                const occupancy = subnetOccupancy(subnet, devices.get(subnet.id) ?? [])
                 return (
                   <tr key={subnet.id}>
                     <td>
@@ -138,10 +143,7 @@ export default function SubnetListPage() {
                     </td>
                     <td className="num mono">{subnet.dhcpPools.length}</td>
                     <td className="text-fg-2">{subnet.includeFirstLast ? 'Usable' : <span className="cell-muted">Not usable</span>}</td>
-                    <td className="num">
-                      <OccupancyMeter occupancy={occupancy} color={vlanColor(subnet.vlan?.vlanId)} />
-                    </td>
-                    <td className="num mono">{occupancy.usable}</td>
+                    <OccupancyCells occupancy={occupancy} color={vlanColor(subnet.vlan?.vlanId)} />
                     <td className="mono text-fg-2">{new Date(subnet.createdAt).toLocaleDateString()}</td>
                     <td>
                       <div className="row-actions">

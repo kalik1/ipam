@@ -2,27 +2,32 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import axios from 'axios'
 import api, { getErrorMessage } from '@/lib/api'
-import { subnetOccupancy, sumOccupancy } from '@/lib/occupancy'
+import { devicesBySubnet, subnetOccupancy, sumOccupancy } from '@/lib/occupancy'
 import { vlanColor } from '@/lib/vlan'
-import type { VlanDetail } from '@/types'
+import type { Topology, TopologyDevice, VlanDetail } from '@/types'
 import { EmptyState } from '@/components/EmptyState'
-import { OccupancyMeter } from '@/components/OccupancyMeter'
+import { OCCUPANCY_COLUMNS, OccupancyCells, OccupancyHeads } from '@/components/OccupancyMeter'
 import { Panel, PanelHeader } from '@/components/Panel'
 import { Table, TableMessage } from '@/components/Table'
 import { VlanChip } from '@/components/VlanChip'
 
-const COLUMNS = 7
+const COLUMNS = 5 + OCCUPANCY_COLUMNS
+
+interface LoadedVlan {
+  vlan: VlanDetail
+  devices: ReadonlyMap<number, TopologyDevice[]>
+}
 
 export default function VlanDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [vlan, setVlan] = useState<VlanDetail | null>(null)
+  const [loaded, setLoaded] = useState<LoadedVlan | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get<VlanDetail>(`/vlans/${id}`)
-      setVlan(data)
+      const [vlanRes, topologyRes] = await Promise.all([api.get<VlanDetail>(`/vlans/${id}`), api.get<Topology>('/topology')])
+      setLoaded({ vlan: vlanRes.data, devices: devicesBySubnet(topologyRes.data) })
       setNotFound(false)
       setError('')
     } catch (e) {
@@ -52,16 +57,20 @@ export default function VlanDetailPage() {
       </Panel>
     )
   }
-  if (!vlan) {
+  if (!loaded) {
     return <p className="text-fg-3">Loading VLAN...</p>
   }
 
+  const { vlan, devices } = loaded
   const color = vlanColor(vlan.vlanId)
-  const total = sumOccupancy(vlan.subnets)
+  const occupancies = new Map(vlan.subnets.map((subnet) => [subnet.id, subnetOccupancy(subnet, devices.get(subnet.id) ?? [])]))
+  const total = sumOccupancy([...occupancies.values()])
   const facts = [
     { label: 'VLAN ID', value: String(vlan.vlanId) },
     { label: 'Subnets', value: String(vlan.subnets.length) },
-    { label: 'Occupied', value: `${total.occupied} (${total.percent}%)` },
+    { label: 'Occupied', value: String(total.occupied) },
+    { label: 'Reserved', value: String(total.reserved) },
+    { label: 'Free', value: total.usable > 0 ? `${total.free} (${total.freePercent}%)` : String(total.free) },
     { label: 'Usable addresses', value: String(total.usable) },
     { label: 'Created', value: new Date(vlan.createdAt).toLocaleDateString() },
   ]
@@ -104,8 +113,7 @@ export default function VlanDetailPage() {
               <th>CIDR</th>
               <th>Gateways</th>
               <th className="num">DHCP pools</th>
-              <th className="num">Occupied</th>
-              <th className="num">Usable</th>
+              <OccupancyHeads />
               <th>Created</th>
             </tr>
           </thead>
@@ -116,7 +124,7 @@ export default function VlanDetailPage() {
               </TableMessage>
             ) : (
               vlan.subnets.map((subnet) => {
-                const occupancy = subnetOccupancy(subnet)
+                const occupancy = occupancies.get(subnet.id) ?? subnetOccupancy(subnet, [])
                 return (
                   <tr key={subnet.id}>
                     <td>
@@ -129,10 +137,7 @@ export default function VlanDetailPage() {
                       {subnet.gateways.length > 0 ? subnet.gateways.join(', ') : <span className="cell-muted">None</span>}
                     </td>
                     <td className="num mono">{subnet.dhcpPools.length}</td>
-                    <td className="num">
-                      <OccupancyMeter occupancy={occupancy} color={color} />
-                    </td>
-                    <td className="num mono">{occupancy.usable}</td>
+                    <OccupancyCells occupancy={occupancy} color={color} />
                     <td className="mono text-fg-2">{new Date(subnet.createdAt).toLocaleDateString()}</td>
                   </tr>
                 )

@@ -51,8 +51,9 @@
   .occ .minibar {
     width: 72px;
   }
-  .occ .pc {
-    width: 3.2em;
+  .occ-pc {
+    display: inline-block;
+    width: 3.6em;
     color: var(--text-3);
     text-align: right;
   }

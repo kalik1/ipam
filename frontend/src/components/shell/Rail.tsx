@@ -60,7 +60,7 @@ function AgentList({ live }: { live: LiveState }) {
 
 export function Rail({ data, username, onLogout }: { data: ShellData; username?: string; onLogout: () => void }) {
   const live = useLive()
-  const groups = useMemo(() => groupSubnetsByVlan(data.subnets), [data.subnets])
+  const groups = useMemo(() => groupSubnetsByVlan(data.subnets, data.devices), [data.subnets, data.devices])
   const connectedAgents = live.agents.filter((agent) => agent.connected).length
   const counts = { ...data.counts, agents: live.agentsLoaded ? connectedAgents : undefined }
   return (
