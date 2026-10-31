@@ -98,7 +98,8 @@ export class SubnetsService {
     }
     const existing = await this.subnetRepo.findOne({ where: { cidr: dto.cidr } });
     if (existing) throw new ConflictException('CIDR already exists');
-    const vlanId = await this.resolveVlanId(dto.vlanId);
+    const vlanId =
+      dto.vlanId === undefined ? null : (await this.findVlan(dto.vlanId)).id;
     const subnet = this.subnetRepo.create({
       cidr: dto.cidr,
       name: dto.name,
@@ -147,10 +148,9 @@ export class SubnetsService {
       subnet.includeFirstLast = dto.includeFirstLast;
     }
     if (dto.vlanId !== undefined) {
-      subnet.vlanId =
-        dto.vlanId === null
-          ? null
-          : await this.resolveVlanId(dto.vlanId);
+      subnet.vlan =
+        dto.vlanId === null ? null : await this.findVlan(dto.vlanId);
+      subnet.vlanId = subnet.vlan?.id ?? null;
     }
     if (dto.domainName !== undefined) subnet.domainName = dto.domainName;
     if (dto.dnsServers !== undefined) subnet.dnsServers = dto.dnsServers;
@@ -323,11 +323,10 @@ export class SubnetsService {
     });
   }
 
-  private async resolveVlanId(vlanId?: number): Promise<number | null> {
-    if (vlanId === undefined) return null;
-    const vlan = await this.vlanRepo.findOne({ where: { id: vlanId } });
+  private async findVlan(id: number): Promise<Vlan> {
+    const vlan = await this.vlanRepo.findOne({ where: { id } });
     if (!vlan) throw new BadRequestException('VLAN not found');
-    return vlan.id;
+    return vlan;
   }
 
   private async deviceCounts(): Promise<Map<number, number>> {

@@ -21,8 +21,8 @@ export interface Subnet {
   gateways: string[]
   includeFirstLast: boolean
   dhcpPools: DhcpPool[]
-  vlanId: number
-  vlan: Vlan
+  vlanId: number | null
+  vlan: Vlan | null
   description: string
   domainName: string
   dnsServers: string
@@ -40,8 +40,8 @@ export interface Device {
   mac: string
   hostname: string
   vendor: string
-  subnetId: number
-  subnet: Subnet
+  subnetId: number | null
+  subnet?: Subnet | null
   status: 'online' | 'offline'
   lastSeen: string
   notes: string
@@ -94,7 +94,7 @@ export interface ApiKey {
   name: string
   keyPrefix: string
   createdAt: string
-  lastUsedAt: string
+  lastUsedAt: string | null
 }
 
 export interface ApiKeyCreated extends ApiKey {
@@ -107,6 +107,7 @@ export interface ScanReport {
   platform: string
   deviceCount: number
   receivedAt: string
+  subnetIds: number[]
 }
 
 export interface SubnetUtilization {

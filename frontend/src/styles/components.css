@@ -1,0 +1,527 @@
+@layer components {
+  .mono {
+    font-family: var(--font-mono);
+    font-stretch: 87.5%;
+    font-size: 11.5px;
+    letter-spacing: -0.01em;
+  }
+  .font-mono {
+    font-stretch: 87.5%;
+  }
+  .heading {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 650;
+    font-stretch: 82%;
+    letter-spacing: -0.005em;
+    line-height: 1.1;
+  }
+  .panel-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    font-stretch: 85%;
+  }
+  .btn {
+    --cut: 7px;
+    --edge: var(--line);
+    --face: var(--panel-hi);
+    --ink: var(--text);
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 0;
+    background: var(--edge);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 650;
+    font-stretch: 80%;
+    letter-spacing: 0.015em;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  }
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    background: var(--face);
+    clip-path: polygon(calc(var(--cut) - 0.5px) 0, 100% 0, 100% calc(100% - var(--cut) + 0.5px), calc(100% - var(--cut) + 0.5px) 100%, 0 100%, 0 calc(var(--cut) - 0.5px));
+  }
+  .btn:hover {
+    --edge: var(--text-3);
+  }
+  .btn:active {
+    --face: var(--line-soft);
+  }
+  .btn:focus-visible {
+    outline: 0;
+    --edge: var(--accent);
+  }
+  .btn:focus-visible::before {
+    inset: 2px;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .btn[aria-busy="true"] {
+    cursor: progress;
+  }
+  .btn-primary {
+    --edge: var(--accent);
+    --face: var(--accent);
+    --ink: var(--accent-ink);
+  }
+  .btn-primary:hover {
+    --edge: color-mix(in oklab, var(--accent) 82%, #fff);
+    --face: color-mix(in oklab, var(--accent) 82%, #fff);
+  }
+  .btn-primary:active {
+    --edge: color-mix(in oklab, var(--accent) 80%, #000);
+    --face: color-mix(in oklab, var(--accent) 80%, #000);
+  }
+  .btn-primary:focus-visible {
+    --edge: var(--text);
+  }
+  .btn-danger {
+    --edge: var(--danger);
+    --face: var(--panel);
+    --ink: var(--danger);
+    padding-left: 24px;
+  }
+  .btn-danger::after {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 1px;
+    bottom: 1px;
+    width: 10px;
+    background: repeating-linear-gradient(-45deg, var(--danger) 0 3px, transparent 3px 6px);
+    clip-path: polygon(calc(var(--cut) - 1px) 0, 100% 0, 100% 100%, 0 100%, 0 calc(var(--cut) - 1px));
+  }
+  .btn-danger:hover {
+    --edge: var(--danger);
+    --face: color-mix(in oklab, var(--danger) 12%, var(--panel));
+  }
+  .btn-danger:focus-visible {
+    --edge: var(--text);
+  }
+  .btn-ghost {
+    --face: var(--rail);
+    --edge: var(--line);
+    --ink: var(--text-2);
+  }
+  .btn-ghost:hover {
+    --edge: var(--text-3);
+    --ink: var(--text);
+  }
+  .btn-ghost:focus-visible {
+    --edge: var(--accent);
+  }
+  .btn-icon {
+    --cut: 6px;
+    width: 32px;
+    padding: 0;
+  }
+  .btn-danger.btn-icon {
+    padding: 0;
+  }
+  .btn-danger.btn-icon::after {
+    display: none;
+  }
+  .lamp {
+    width: 10px;
+    height: 6px;
+    flex: none;
+    background: color-mix(in oklab, var(--accent-ink) 35%, transparent);
+  }
+  .lamp.busy {
+    background: var(--lamp-busy);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: inset 0 1px 0 var(--panel-hi);
+  }
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .panel-body {
+    padding: 14px 16px 16px;
+  }
+  .hud {
+    position: relative;
+  }
+  .hud::after {
+    --c: color-mix(in oklab, var(--accent) 80%, transparent);
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: 4px;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--c), var(--c)) top left / 12px 2px no-repeat,
+      linear-gradient(var(--c), var(--c)) top left / 2px 12px no-repeat,
+      linear-gradient(var(--c), var(--c)) top right / 12px 2px no-repeat,
+      linear-gradient(var(--c), var(--c)) top right / 2px 12px no-repeat,
+      linear-gradient(var(--c), var(--c)) bottom left / 12px 2px no-repeat,
+      linear-gradient(var(--c), var(--c)) bottom left / 2px 12px no-repeat,
+      linear-gradient(var(--c), var(--c)) bottom right / 12px 2px no-repeat,
+      linear-gradient(var(--c), var(--c)) bottom right / 2px 12px no-repeat;
+  }
+  .brushed {
+    background-image: repeating-linear-gradient(90deg, var(--brushed) 0 1px, transparent 1px 4px);
+  }
+  .cscrew {
+    position: absolute;
+    z-index: 2;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--screw);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  }
+  .cscrew.tl {
+    top: 8px;
+    left: 8px;
+  }
+  .cscrew.tr {
+    top: 8px;
+    right: 8px;
+  }
+  .cscrew.bl {
+    bottom: 8px;
+    left: 8px;
+  }
+  .cscrew.br {
+    bottom: 8px;
+    right: 8px;
+  }
+  .vent {
+    flex: none;
+    width: 56px;
+    height: 12px;
+    background-image: radial-gradient(circle, var(--well) 1.6px, transparent 1.9px);
+    background-size: 7px 6px;
+  }
+
+  .selector {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 28px;
+    padding: 0 12px 0 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    font-stretch: 82%;
+    cursor: pointer;
+  }
+  .chip + .chip {
+    box-shadow: inset 1px 0 0 var(--line);
+  }
+  .chip::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    flex: none;
+    background: var(--line);
+  }
+  .chip:hover {
+    color: var(--text);
+  }
+  .chip:focus-visible {
+    outline-offset: -2px;
+  }
+  .chip.active {
+    background: color-mix(in oklab, var(--accent) 16%, transparent);
+    color: var(--text);
+  }
+  .chip.active::before {
+    background: var(--accent);
+  }
+  .chip b {
+    font-family: var(--font-mono);
+    font-stretch: 80%;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+  }
+  .chip.active b {
+    color: var(--text-2);
+  }
+
+  .table-box {
+    overflow: auto;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .tbl th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text-3);
+    font-size: 11.5px;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .tbl td {
+    height: 30px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line-soft);
+    white-space: nowrap;
+  }
+  .tbl tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .tbl tbody tr:hover td {
+    background: var(--line-soft);
+  }
+  .tbl tr.sel td {
+    background: color-mix(in oklab, var(--accent) 13%, transparent);
+  }
+  .tbl tr.sel:hover td {
+    background: color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  .tbl .num {
+    text-align: right;
+  }
+  .tbl td.message {
+    height: auto;
+    padding: 24px 14px;
+    color: var(--text-3);
+    text-align: center;
+    white-space: normal;
+  }
+  .tbl tbody tr:hover td.message {
+    background: transparent;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field-label {
+    color: var(--text-2);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .field-hint {
+    color: var(--text-3);
+    font-size: 11.5px;
+  }
+  .input {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background-color: var(--sunk);
+    color: var(--text);
+    font: inherit;
+  }
+  .input::placeholder {
+    color: var(--text-3);
+  }
+  .input:hover {
+    border-color: var(--text-3);
+  }
+  .input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  textarea.input {
+    height: auto;
+    min-height: 80px;
+    padding: 8px 10px;
+  }
+  select.input {
+    appearance: none;
+    padding-right: 30px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
+      linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+  }
+  .alert {
+    padding: 8px 12px;
+    border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--danger) 10%, transparent);
+    color: var(--danger);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: color-mix(in oklab, var(--rail) 80%, transparent);
+  }
+  .modal {
+    width: 100%;
+    max-width: 32rem;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+  }
+  .modal:focus-visible {
+    outline: 0;
+  }
+
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 40px 16px;
+    text-align: center;
+  }
+  .empty-jack {
+    position: relative;
+    width: 40px;
+    height: 32px;
+    border-radius: 3px;
+    background: var(--well);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  .empty-jack::before {
+    content: "";
+    position: absolute;
+    left: 25%;
+    right: 25%;
+    top: 17%;
+    height: 15%;
+    background: repeating-linear-gradient(90deg, var(--pin) 0 1px, transparent 1px 3px);
+    opacity: 0.75;
+  }
+  .empty-jack::after {
+    content: "";
+    position: absolute;
+    left: 37%;
+    right: 37%;
+    bottom: 0;
+    height: 17%;
+    border-radius: 2px 2px 0 0;
+    background: var(--panel);
+  }
+
+  .dot {
+    display: inline-block;
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .dot.on {
+    background: var(--led);
+    box-shadow: 0 0 6px 1px var(--led-glow);
+  }
+  .dot.off {
+    background: var(--led-off);
+    box-shadow: inset 0 0 0 1px var(--text-3);
+  }
+  .dot.err {
+    background: var(--danger);
+    box-shadow: 0 0 6px 1px color-mix(in oklab, var(--danger) 60%, transparent);
+  }
+  .dot.wait {
+    background: var(--gw);
+    box-shadow: 0 0 6px 1px color-mix(in oklab, var(--gw) 60%, transparent);
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-2);
+  }
+
+  .cable {
+    flex: none;
+    width: 14px;
+    height: 4px;
+    border-radius: 2px;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  }
+  .vlanchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 24px;
+    padding: 0 10px 0 8px;
+    border-radius: 3px;
+    background: var(--sunk);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .vlanchip .cable {
+    width: 18px;
+    height: 6px;
+  }
+
+  .minibar {
+    display: flex;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--sunk);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+  }
+  .minibar > i {
+    display: block;
+    flex: none;
+    height: 100%;
+  }
+  .minibar > i.res {
+    background: repeating-linear-gradient(135deg, var(--pool) 0 1px, transparent 1px 3px);
+  }
+}

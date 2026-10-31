@@ -1,79 +1,143 @@
 @import "tailwindcss";
+@import "./styles/components.css";
+@import "./styles/shell.css";
+@import "./styles/address-map.css";
+@import "./styles/subnet-page.css";
+@import "./styles/search.css";
+@import "./styles/network-pages.css";
+@import "./styles/topology.css";
+@import "./styles/live.css";
+@import "./styles/discovery-pages.css";
+@import "./styles/live-scans.css";
+@import "./styles/scan-now.css";
+@import "./styles/dashboard.css";
+@import "./styles/tooltip.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+:root {
+  --bg: #1A1E25;
+  --rail: #13161B;
+  --panel: #222831;
+  --panel-hi: #2C333D;
+  --well: #0B0E12;
+  --sunk: #14181E;
+  --line: #343C47;
+  --line-soft: #272D36;
+  --text: #E1E6EC;
+  --text-2: #A7B1BC;
+  --text-3: #8A96A2;
+  --accent: #3CC8D4;
+  --accent-ink: #04262A;
+  --led: #5BE38A;
+  --led-glow: rgba(91, 227, 138, 0.55);
+  --led-off: #2A3038;
+  --pool: #7F97B2;
+  --hatch: rgba(150, 172, 198, 0.26);
+  --pin: #B99A4C;
+  --gw: #F2B84B;
+  --warn: #F2B84B;
+  --danger: #F2777E;
+  --lamp-busy: #FFC14D;
+  --brushed: rgba(255, 255, 255, 0.016);
+  --screw: radial-gradient(circle at 35% 35%, #9AA3AD, #4B525B 70%);
+  color-scheme: dark;
+}
+
+:root.light {
+  --bg: #E2E6EA;
+  --rail: #D5DAE0;
+  --panel: #F5F7F9;
+  --panel-hi: #FFFFFF;
+  --well: #20262E;
+  --sunk: #E4E8EC;
+  --line: #BFC7D0;
+  --line-soft: #D3D9DF;
+  --text: #141920;
+  --text-2: #45505D;
+  --text-3: #5B6774;
+  --accent: #0B7F8B;
+  --accent-ink: #FFFFFF;
+  --led: #2BD46F;
+  --led-glow: rgba(43, 212, 111, 0.5);
+  --led-off: #3A414A;
+  --pool: #5B7390;
+  --gw: #D99A1E;
+  --warn: #9A6400;
+  --danger: #B8323B;
+  --brushed: rgba(0, 0, 0, 0.022);
+  color-scheme: light;
+}
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-sans: 'Archivo Variable', system-ui, sans-serif;
+  --font-mono: 'Martian Mono Variable', ui-monospace, monospace;
+}
 
-  --animate-fade-in: fade-in 0.25s ease-out both;
-  --animate-scale-in: scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-slide-up: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-bar-fill: bar-fill 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  @keyframes scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.96) translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-  @keyframes slide-up {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  @keyframes bar-fill {
-    from {
-      width: 0;
-    }
-  }
+@theme inline {
+  --color-ground: var(--bg);
+  --color-rail: var(--rail);
+  --color-panel: var(--panel);
+  --color-panel-hi: var(--panel-hi);
+  --color-well: var(--well);
+  --color-sunk: var(--sunk);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-fg: var(--text);
+  --color-fg-2: var(--text-2);
+  --color-fg-3: var(--text-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-led: var(--led);
+  --color-led-off: var(--led-off);
+  --color-pool: var(--pool);
+  --color-gw: var(--gw);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
 }
 
 @layer base {
   html {
+    background-color: var(--bg);
+    accent-color: var(--accent);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
   body {
+    min-height: 100vh;
+    background-color: var(--bg);
+    color: var(--text);
     font-family: var(--font-sans);
-    background-color: var(--color-slate-950);
+    font-size: 13px;
+    line-height: 1.45;
   }
   ::selection {
-    background-color: color-mix(in oklab, var(--color-indigo-500) 35%, transparent);
+    background-color: color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-slate-700) transparent;
+    scrollbar-color: var(--line) var(--sunk);
   }
-  *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
-  *::-webkit-scrollbar-track {
-    background: transparent;
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: var(--sunk);
   }
-  *::-webkit-scrollbar-thumb {
-    background-color: var(--color-slate-700);
-    border-radius: 9999px;
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border: 2px solid var(--sunk);
+    border-radius: 2px;
   }
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-slate-600);
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-3);
   }
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
@@ -85,26 +149,10 @@
   }
 }
 
-@layer components {
-  .card {
-    @apply rounded-xl border border-slate-800 bg-slate-900/60 shadow-sm shadow-black/20;
-  }
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:pointer-events-none disabled:opacity-50;
-  }
-  .btn-primary {
-    @apply bg-indigo-500 text-white shadow-sm shadow-indigo-950/50 hover:bg-indigo-400;
-  }
-  .btn-secondary {
-    @apply border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-100;
-  }
-  .btn-danger {
-    @apply bg-red-600 text-white shadow-sm shadow-red-950/50 hover:bg-red-500;
-  }
-  .th {
-    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500;
-  }
-  .td {
-    @apply px-4 py-3 text-sm text-slate-400;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
   }
 }

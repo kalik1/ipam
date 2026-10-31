@@ -1,3 +1,4 @@
+import { Button } from './Button'
 import { Modal } from './Modal'
 
 export function ConfirmDialog({
@@ -17,14 +18,12 @@ export function ConfirmDialog({
 }) {
   return (
     <Modal title={title} onClose={onCancel}>
-      <p className="text-sm text-slate-400">{message}</p>
-      <div className="mt-6 flex justify-end gap-3">
-        <button onClick={onCancel} className="btn btn-secondary">
-          Cancel
-        </button>
-        <button onClick={onConfirm} disabled={loading} className="btn btn-danger">
+      <p className="text-fg-2">{message}</p>
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="danger" onClick={onConfirm} disabled={loading} aria-busy={loading}>
           {loading ? 'Deleting...' : confirmLabel}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

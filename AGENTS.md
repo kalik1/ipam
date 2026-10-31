@@ -20,11 +20,16 @@ cd frontend && npm install && npm run dev
 
 # agent (needs a running backend and an API key)
 cd agent && npm install && npm run scan -- --api-key ipam-... --agent-name myagent
+
+# WebSocket agent with connectors, connects to the backend port directly (not the Vite proxy)
+cd agent && npm run ws -- --api-key ipam-... --server ws://localhost:3000 --agent-name myagent --connector demo
 ```
 
 - The backend seeds automatically on first start (empty `backend/data/ipam.sqlite`): user `admin`/`admin`, demo VLANs/subnets/devices, and one API key named `seed` whose full value is printed once to the console.
 - For a fresh re-seed: stop the backend and delete `backend/data/ipam.sqlite`.
 - Node 24 is required (the agent relies on native TS type stripping: `node src/agent.ts`).
+- Connectors of the WebSocket agent: `mikrotik` (a real RouterOS device; the seeded connector points at a fake host, so its runs always fail) and `demo` (no config, returns a few fake devices in the seeded subnets after a short pause). For a successful scan end to end: create a `demo` connector with an empty config, assign it to the agent, run it or click "Scan now".
+- To run several checkouts side by side: the backend honors `PORT`; the frontend dev server reads `IPAM_WEB_PORT` (default 5173) and `IPAM_API_TARGET` (proxy target, default `http://localhost:3000`).
 
 ## Build and test commands
 
@@ -43,13 +48,16 @@ Run build and tests in every subproject you touch. All must pass before you are 
 - No emojis in code or docs.
 - Small, focused functions; follow the existing module layout (NestJS modules: controller + service + DTOs with class-validator).
 - Backend date columns use `type: 'datetime'` (portable across sqlite and postgres; better-sqlite3 rejects `timestamp`).
-- Frontend: dark theme (slate-950 background, slate-900 cards, indigo accent); new pages/components follow the patterns in `frontend/src/components/` and `frontend/src/pages/`.
-- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline) or lasts only while a real state is in progress (a command still `sent`). Everything else is static: hover and focus change color instantly, no transitions. See `docs/adr/0001-animations-driven-by-real-events.md`.
+- Frontend design system (network hardware look, dark and light themes): palette tokens are CSS variables on `<html class="dark|light">` in `frontend/src/index.css`, exposed to Tailwind as `ground`, `rail`, `panel`, `panel-hi`, `well`, `sunk`, `line`, `line-soft`, `fg`, `fg-2`, `fg-3`, `accent`, `accent-ink`, `led`, `led-off`, `pool`, `gw`, `warn`, `danger` (`bg-panel text-fg-2 border-line`). Style with these tokens, never with Tailwind's default palettes (`slate-*`, `indigo-*`, ...), which do not follow the theme.
+- Frontend type: Archivo Variable for UI, Martian Mono Variable (`.mono`) for IPs, MACs and numbers, bundled from `@fontsource-variable/*/wdth.css` (no font CDN); condense with `font-stretch`, base 13px, sentence case.
+- Frontend building blocks: reuse the base components in `frontend/src/components/` (`Button`, `Panel`/`PanelHeader`, `Selector`, `Table`, `FormField`, `Modal`, `ConfirmDialog`, `EmptyState`, `Badge`, `StatusLed`, `VlanChip`/`Cable`, `Tooltip`); page-level buttons go in the top bar through `<PageActions>`. Use `<Tooltip tip=...>` instead of the native `title` attribute (`describe={false}` when the text repeats an `aria-label`, `focusable` when the trigger is not a control). Component CSS lives in `frontend/src/styles/`, one file per feature imported from `index.css`.
+- VLAN cable colors come from `vlanColor(tag)` and `vlanLabel(vlan)` in `frontend/src/lib/vlan.ts`, keyed by the 802.1Q tag (`Vlan.vlanId`); `Subnet.vlanId` is the VLAN row id, so pass `subnet.vlan?.vlanId`.
+- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline), by the page's data arriving from the API (one shot: the address map LEDs light up once on the first load, never again on a refetch, a live update or a block switch), or lasts only while a real state is in progress (a command still `sent`). The shell and base components are static: hover and focus change color instantly, with a visible focus outline. See `docs/adr/0001-animations-driven-by-real-events.md`.
 
 ## Testing instructions
 
 - Backend unit tests live next to the code (`*.spec.ts`): cidr lib, api-key lib, scan upsert. Add tests for the code you change, even if not asked.
-- Frontend tests: `frontend/src/lib/format.test.ts` (vitest). Test pure helpers; UI is verified by build + manual check.
+- Frontend tests: `frontend/src/lib/*.test.ts` (vitest, node environment, `.test.ts` only). Keep logic in pure `.ts` modules and test it there; UI is verified by build + manual check.
 - The cidr lib (`backend/src/lib/cidr.ts`) is dependency-free and pure — test edge cases: /24, /30, /31, /32, invalid inputs.
 - Integration check (manual, when touching auth/scan/proxy): start backend + frontend, then verify through the Vite proxy (`http://localhost:5173/api/v1/...`): login returns a token, `GET /summary` with the token returns seeded data, `POST /scan/reports` with a valid `X-API-Key` upserts devices, invalid key returns 401.
 
@@ -57,13 +65,14 @@ Run build and tests in every subproject you touch. All must pass before you are 
 
 - API keys: only the sha256 hash is stored (`ApiKey.keyHash`); the full key is returned exactly once, at creation. Never log full keys except the single seed-time log.
 - JWT secret comes from `JWT_SECRET` (default `dev-secret-change-me`); set a real value before exposing the app.
-- The global `JwtAuthGuard` protects every route except those marked `@Public()` (`/auth/login`, `POST /scan/reports`). Keep that list minimal.
+- The global `JwtAuthGuard` protects every route, the `GET /events` stream included. Only the routes marked `@Public()` skip it: `/auth/login` and `POST /scan/reports`. Keep that list minimal.
 - The DB file `backend/data/ipam.sqlite` contains the demo credentials — treat it as local-only.
 
 ## Environment variables (backend)
 
 | Var | Default | Purpose |
 |---|---|---|
+| `PORT` | `3000` | HTTP port of the API and of the agent WebSocket (`/ws/agent`) |
 | `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
 | `PG_HOST` / `PG_PORT` | `localhost` / `5432` | Postgres connection |
 | `PG_USER` / `PG_PASS` / `PG_DB` | `postgres` / `''` / `ipam` | Postgres credentials |
@@ -71,8 +80,10 @@ Run build and tests in every subproject you touch. All must pass before you are 
 
 ## Conventions
 
-- The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP).
-- Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s).
+- The scan endpoint is the integration point for future real agents: keep `POST /scan/reports` backward compatible (agents identify with `X-API-Key`, report `{agent, platform, devices[]}`, devices are upserted by IP and auto-assigned to the subnet whose CIDR contains the IP). Every scan ingestion path (HTTP report, WebSocket report, connector result) goes through `ScanService`, which publishes `device.created` for new devices and one `scan.report` per scan; do not upsert devices around it.
+- Live events: `GET /api/v1/events` is a server-sent events stream for the web UI (JWT in the `Authorization` header, never in the URL; `: keepalive` comments every 15s, no replay). Backend services publish through the global `EventsService.publish({ type, data })` in `backend/src/events/`; the event union is `backend/src/events/live-event.ts`, mirrored in `frontend/src/lib/liveEvents.ts`. The frontend opens one stream in `LiveProvider` (`frontend/src/lib/live.tsx`): animation state comes from the pure `liveReducer` (`frontend/src/lib/liveState.ts`) through `useLive()`, raw events through `useLiveEvent(listener)`.
+- Commands: `AgentWsService.sendCommand` publishes `command.sent` for every command (manual run, ad hoc command, connector scheduler) and `handleResult` publishes `command.result` before the scan of that result. "Scan now" in the top bar runs every enabled assignment of the connected agents through `POST /agents/:name/connectors/:connectorId/run`; it shows "Scanning" and the subnet maps loop their sweep while any `command.sent` has no `command.result` yet, whoever sent it. A scan report reaching a subnet in the meantime runs its single pass there instead (so the seen LEDs follow it), then the loop resumes.
+- Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s), which publishes one `device.offline` with the devices it changed.
 - `API.md` and this file must stay in sync when routes or behaviors change.
 - Git repo: https://github.com/kalik1/ipam (branch `main`). Commit or push only when asked.
 

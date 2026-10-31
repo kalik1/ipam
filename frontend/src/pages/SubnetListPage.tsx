@@ -1,40 +1,33 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getErrorMessage } from '@/lib/api'
-import type { Subnet, Vlan } from '@/types'
-import { Modal } from '@/components/Modal'
+import { devicesBySubnet, subnetOccupancy } from '@/lib/occupancy'
+import { subnetBody, subnetDraft, vlanOptions, type PoolDraft, type SubnetBody, type SubnetDraft } from '@/lib/subnetForm'
+import { vlanColor } from '@/lib/vlan'
+import type { Subnet, Topology, TopologyDevice, Vlan } from '@/types'
+import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { FormField, inputClass } from '@/components/FormField'
-import { UtilizationBar } from '@/components/UtilizationBar'
 import { EmptyState } from '@/components/EmptyState'
+import { FormField, inputClass } from '@/components/FormField'
+import { CloseIcon } from '@/components/icons'
+import { Modal } from '@/components/Modal'
+import { OCCUPANCY_COLUMNS, OccupancyCells, OccupancyHeads } from '@/components/OccupancyMeter'
+import { Panel, PanelHeader } from '@/components/Panel'
+import { Table, TableMessage } from '@/components/Table'
+import { VlanChip } from '@/components/VlanChip'
+import { PageActions } from '@/components/shell/PageActions'
 
 interface SubnetFormState {
   mode: 'create' | 'edit'
   subnet?: Subnet
 }
 
-interface PoolDraft {
-  name: string
-  startIp: string
-  endIp: string
-}
-
-interface SubnetBody {
-  name: string
-  cidr: string
-  gateways: string[]
-  includeFirstLast: boolean
-  dhcpPools: { name?: string; startIp: string; endIp: string }[]
-  vlanId?: number
-  description?: string
-  domainName?: string
-  dnsServers?: string
-  ntpServers?: string
-}
+const COLUMNS = 8 + OCCUPANCY_COLUMNS
 
 export default function SubnetListPage() {
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVlans] = useState<Vlan[]>([])
+  const [devices, setDevices] = useState<ReadonlyMap<number, TopologyDevice[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [form, setForm] = useState<SubnetFormState | null>(null)
@@ -44,12 +37,14 @@ export default function SubnetListPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [subnetsRes, vlansRes] = await Promise.all([
+      const [subnetsRes, vlansRes, topologyRes] = await Promise.all([
         api.get<Subnet[]>('/subnets'),
         api.get<Vlan[]>('/vlans'),
+        api.get<Topology>('/topology'),
       ])
       setSubnets(subnetsRes.data)
       setVlans(vlansRes.data)
+      setDevices(devicesBySubnet(topologyRes.data))
       setError('')
     } catch (e) {
       setError(getErrorMessage(e, 'Failed to load subnets'))
@@ -89,103 +84,93 @@ export default function SubnetListPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-slate-400">IP ranges and CIDR blocks</p>
-        <button
-          onClick={() => setForm({ mode: 'create' })}
-          className="btn btn-primary"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New subnet
-        </button>
-      </div>
+    <>
+      <PageActions>
+        <Button variant="primary" onClick={() => setForm({ mode: 'create' })}>
+          Add subnet
+        </Button>
+      </PageActions>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+        <p className="alert" role="alert">
+          {error}
+        </p>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-800">
+      <Panel aria-label="Subnets">
+        <PanelHeader title="Subnets">
+          <span className="list-count">
+            {loading ? 'Loading' : `${subnets.length} ${subnets.length === 1 ? 'subnet' : 'subnets'}`}
+          </span>
+        </PanelHeader>
+        <Table>
+          <thead>
             <tr>
-              <th className="th">Name</th>
-              <th className="th">CIDR</th>
-              <th className="th">Gateways</th>
-              <th className="th">DHCP</th>
-              <th className="th">1st/last</th>
-              <th className="th">VLAN</th>
-              <th className="th">Utilization</th>
-              <th className="th">Created</th>
-              <th className="th text-right">Actions</th>
+              <th>Name</th>
+              <th>CIDR</th>
+              <th>VLAN</th>
+              <th>Gateways</th>
+              <th className="num">DHCP pools</th>
+              <th>Network and broadcast</th>
+              <OccupancyHeads />
+              <th>Created</th>
+              <th className="num">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
-                  Loading...
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>Loading subnets...</TableMessage>
             ) : subnets.length === 0 ? (
-              <tr>
-                <td colSpan={9}>
-                  <EmptyState title="No subnets" message="Create your first subnet to get started" />
-                </td>
-              </tr>
+              <TableMessage colSpan={COLUMNS}>
+                <EmptyState title="No subnets" message="Add a subnet to start mapping addresses" />
+              </TableMessage>
             ) : (
-              subnets.map((subnet) => (
-                <tr key={subnet.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-medium">
-                    <Link to={`/subnets/${subnet.id}`} className="text-slate-200 transition-colors hover:text-indigo-400">
-                      {subnet.name}
-                    </Link>
-                  </td>
-                  <td className="td font-mono text-indigo-400">{subnet.cidr}</td>
-                  <td className="td font-mono text-amber-400">
-                    {subnet.gateways.length > 0 ? subnet.gateways.join(', ') : '—'}
-                  </td>
-                  <td className="td tabular-nums">{subnet.dhcpPools.length > 0 ? subnet.dhcpPools.length : '—'}</td>
-                  <td className="td">
-                    {subnet.includeFirstLast ? (
-                      <span className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-xs text-sky-400 ring-1 ring-inset ring-sky-500/20">
-                        yes
-                      </span>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="td">{subnet.vlan?.name ?? '—'}</td>
-                  <td className="td">
-                    <UtilizationBar used={subnet.usedHosts} total={subnet.totalHosts} />
-                  </td>
-                  <td className="td tabular-nums">{new Date(subnet.createdAt).toLocaleDateString()}</td>
-                  <td className="td whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setForm({ mode: 'edit', subnet })}
-                      className="mr-3 text-slate-400 transition-colors hover:text-slate-200"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setToDelete(subnet)}
-                      className="text-red-400 transition-colors hover:text-red-300"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
+              subnets.map((subnet) => {
+                const occupancy = subnetOccupancy(subnet, devices.get(subnet.id) ?? [])
+                return (
+                  <tr key={subnet.id}>
+                    <td>
+                      <Link to={`/subnets/${subnet.id}`} className="cell-link">
+                        {subnet.name}
+                      </Link>
+                    </td>
+                    <td className="mono">{subnet.cidr}</td>
+                    <td>
+                      <VlanChip vlan={subnet.vlan} />
+                    </td>
+                    <td className="mono text-fg-2">
+                      {subnet.gateways.length > 0 ? subnet.gateways.join(', ') : <span className="cell-muted">None</span>}
+                    </td>
+                    <td className="num mono">{subnet.dhcpPools.length}</td>
+                    <td className="text-fg-2">{subnet.includeFirstLast ? 'Usable' : <span className="cell-muted">Not usable</span>}</td>
+                    <OccupancyCells occupancy={occupancy} color={vlanColor(subnet.vlan?.vlanId)} />
+                    <td className="mono text-fg-2">{new Date(subnet.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <div className="row-actions">
+                        <Button
+                          variant="ghost"
+                          aria-label={`Edit subnet ${subnet.name}`}
+                          onClick={() => setForm({ mode: 'edit', subnet })}
+                        >
+                          Edit
+                        </Button>
+                        <Button variant="danger" aria-label={`Delete subnet ${subnet.name}`} onClick={() => setToDelete(subnet)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </Panel>
 
       {form && (
-        <Modal title={form.mode === 'edit' ? 'Edit subnet' : 'New subnet'} onClose={() => setForm(null)}>
+        <Modal title={form.mode === 'edit' ? 'Edit subnet' : 'Add subnet'} onClose={() => setForm(null)}>
           <SubnetForm
+            mode={form.mode}
             initial={form.mode === 'edit' ? form.subnet : undefined}
             vlans={vlans}
             onSubmit={handleSave}
@@ -198,43 +183,47 @@ export default function SubnetListPage() {
         <ConfirmDialog
           title="Delete subnet"
           message={`Delete subnet ${toDelete.name} (${toDelete.cidr})? This cannot be undone.`}
+          confirmLabel="Delete subnet"
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setToDelete(null)}
         />
       )}
-    </div>
+    </>
   )
 }
 
 function SubnetForm({
+  mode,
   initial,
   vlans,
   onSubmit,
   onClose,
 }: {
+  mode: 'create' | 'edit'
   initial?: Subnet
   vlans: Vlan[]
   onSubmit: (body: SubnetBody) => Promise<void>
   onClose: () => void
 }) {
-  const [name, setName] = useState(initial?.name ?? '')
-  const [cidr, setCidr] = useState(initial?.cidr ?? '')
-  const [gateways, setGateways] = useState<string[]>(initial?.gateways ?? [])
-  const [includeFirstLast, setIncludeFirstLast] = useState(initial?.includeFirstLast ?? false)
-  const [pools, setPools] = useState<PoolDraft[]>(
-    initial?.dhcpPools.map((pool) => ({ name: pool.name, startIp: pool.startIp, endIp: pool.endIp })) ?? [],
-  )
-  const [vlanId, setVlanId] = useState(initial?.vlanId ? String(initial.vlanId) : '')
-  const [description, setDescription] = useState(initial?.description ?? '')
-  const [domainName, setDomainName] = useState(initial?.domainName ?? '')
-  const [dnsServers, setDnsServers] = useState(initial?.dnsServers ?? '')
-  const [ntpServers, setNtpServers] = useState(initial?.ntpServers ?? '')
+  const ids = useId()
+  const [draft, setDraft] = useState<SubnetDraft>(() => subnetDraft(initial))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  function update(patch: Partial<SubnetDraft>) {
+    setDraft((current) => ({ ...current, ...patch }))
+  }
+
+  function updateGateway(index: number, value: string) {
+    setDraft((current) => ({ ...current, gateways: current.gateways.map((g, i) => (i === index ? value : g)) }))
+  }
+
   function updatePool(index: number, patch: Partial<PoolDraft>) {
-    setPools((list) => list.map((pool, i) => (i === index ? { ...pool, ...patch } : pool)))
+    setDraft((current) => ({
+      ...current,
+      pools: current.pools.map((pool, i) => (i === index ? { ...pool, ...patch } : pool)),
+    }))
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -242,24 +231,7 @@ function SubnetForm({
     setSaving(true)
     setError('')
     try {
-      await onSubmit({
-        name: name.trim(),
-        cidr: cidr.trim(),
-        gateways: gateways.map((gateway) => gateway.trim()).filter(Boolean),
-        includeFirstLast,
-        dhcpPools: pools
-          .filter((pool) => pool.startIp.trim() !== '' && pool.endIp.trim() !== '')
-          .map((pool) => ({
-            name: pool.name.trim() || undefined,
-            startIp: pool.startIp.trim(),
-            endIp: pool.endIp.trim(),
-          })),
-        vlanId: vlanId ? Number(vlanId) : undefined,
-        description: description.trim() || undefined,
-        domainName: domainName.trim() || undefined,
-        dnsServers: dnsServers.trim() || undefined,
-        ntpServers: ntpServers.trim() || undefined,
-      })
+      await onSubmit(subnetBody(draft, mode))
       onClose()
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to save subnet'))
@@ -269,144 +241,161 @@ function SubnetForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-      <FormField label="Name">
-        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
-      </FormField>
-      <FormField label="CIDR" hint='Example: 192.168.1.0/24'>
-        <input className={inputClass} value={cidr} onChange={(e) => setCidr(e.target.value)} required />
-      </FormField>
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[13px] font-medium text-slate-300">Gateways</span>
-          <button
-            type="button"
-            onClick={() => setGateways((list) => [...list, ''])}
-            className="text-xs text-indigo-400 transition-colors hover:text-indigo-300"
-          >
-            + Add gateway
-          </button>
-        </div>
-        {gateways.length === 0 ? (
-          <p className="text-xs text-slate-500">No gateways</p>
-        ) : (
-          <div className="space-y-2">
-            {gateways.map((gateway, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  className={inputClass}
-                  value={gateway}
-                  onChange={(e) =>
-                    setGateways((list) => list.map((value, i) => (i === index ? e.target.value : value)))
-                  }
-                  placeholder="Optional IP within the subnet"
-                />
-                <button
-                  type="button"
-                  onClick={() => setGateways((list) => list.filter((_, i) => i !== index))}
-                  className="shrink-0 text-slate-500 transition-colors hover:text-red-400"
-                  aria-label="Remove gateway"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <label className="flex items-center gap-2 text-sm text-slate-300">
-        <input
-          type="checkbox"
-          checked={includeFirstLast}
-          onChange={(e) => setIncludeFirstLast(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
-        />
-        Include first/last addresses (point-to-point links)
-      </label>
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[13px] font-medium text-slate-300">DHCP pools</span>
-          <button
-            type="button"
-            onClick={() => setPools((list) => [...list, { name: '', startIp: '', endIp: '' }])}
-            className="text-xs text-indigo-400 transition-colors hover:text-indigo-300"
-          >
-            + Add pool
-          </button>
-        </div>
-        {pools.length === 0 ? (
-          <p className="text-xs text-slate-500">No DHCP pools</p>
-        ) : (
-          <div className="space-y-2">
-            {pools.map((pool, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
-                <input
-                  className={inputClass}
-                  value={pool.name}
-                  onChange={(e) => updatePool(index, { name: e.target.value })}
-                  placeholder="Name (optional)"
-                />
-                <input
-                  className={inputClass}
-                  value={pool.startIp}
-                  onChange={(e) => updatePool(index, { startIp: e.target.value })}
-                  placeholder="Start IP"
-                />
-                <input
-                  className={inputClass}
-                  value={pool.endIp}
-                  onChange={(e) => updatePool(index, { endIp: e.target.value })}
-                  placeholder="End IP"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPools((list) => list.filter((_, i) => i !== index))}
-                  className="shrink-0 text-slate-500 transition-colors hover:text-red-400"
-                  aria-label="Remove pool"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+    <form onSubmit={handleSubmit} className="form-grid">
+      {error && (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="cols-2">
+        <FormField label="Name">
+          <input className={inputClass} value={draft.name} onChange={(e) => update({ name: e.target.value })} required />
+        </FormField>
+        <FormField label="CIDR" hint="Example: 192.168.1.0/24">
+          <input
+            className={`${inputClass} mono`}
+            value={draft.cidr}
+            onChange={(e) => update({ cidr: e.target.value })}
+            required
+          />
+        </FormField>
       </div>
       <FormField label="VLAN">
-        <select className={inputClass} value={vlanId} onChange={(e) => setVlanId(e.target.value)}>
-          <option value="">None</option>
-          {vlans.map((vlan) => (
-            <option key={vlan.id} value={vlan.vlanId}>
-              {vlan.vlanId} - {vlan.name}
+        <select className={inputClass} value={draft.vlanId} onChange={(e) => update({ vlanId: e.target.value })}>
+          <option value="">No VLAN</option>
+          {vlanOptions(vlans).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
       </FormField>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FormField label="Domain name" hint='Example: lan.example.com'>
-          <input className={inputClass} value={domainName} onChange={(e) => setDomainName(e.target.value)} placeholder="lan.example.com" />
+
+      <div className="form-list" role="group" aria-labelledby={`${ids}-gateways`}>
+        <div className="form-list-head">
+          <span id={`${ids}-gateways`} className="field-label">
+            Gateways
+          </span>
+          <Button variant="ghost" onClick={() => update({ gateways: [...draft.gateways, ''] })}>
+            Add gateway
+          </Button>
+        </div>
+        {draft.gateways.length === 0 ? (
+          <p className="form-list-empty">No gateways</p>
+        ) : (
+          draft.gateways.map((gateway, index) => (
+            <div key={index} className="form-list-row">
+              <input
+                className={`${inputClass} mono`}
+                value={gateway}
+                onChange={(e) => updateGateway(index, e.target.value)}
+                placeholder="IP inside the subnet"
+                aria-label={`Gateway ${index + 1}`}
+              />
+              <Button
+                variant="ghost"
+                icon
+                aria-label={`Remove gateway ${index + 1}`}
+                onClick={() => update({ gateways: draft.gateways.filter((_, i) => i !== index) })}
+              >
+                <CloseIcon />
+              </Button>
+            </div>
+          ))
+        )}
+      </div>
+
+      <label className="form-check">
+        <input
+          type="checkbox"
+          checked={draft.includeFirstLast}
+          onChange={(e) => update({ includeFirstLast: e.target.checked })}
+        />
+        Count network and broadcast as usable addresses (point-to-point links)
+      </label>
+
+      <div className="form-list" role="group" aria-labelledby={`${ids}-pools`}>
+        <div className="form-list-head">
+          <span id={`${ids}-pools`} className="field-label">
+            DHCP pools
+          </span>
+          <Button variant="ghost" onClick={() => update({ pools: [...draft.pools, { name: '', startIp: '', endIp: '' }] })}>
+            Add pool
+          </Button>
+        </div>
+        {draft.pools.length === 0 ? (
+          <p className="form-list-empty">No DHCP pools</p>
+        ) : (
+          draft.pools.map((pool, index) => (
+            <div key={index} className="form-list-row pool">
+              <input
+                className={inputClass}
+                value={pool.name}
+                onChange={(e) => updatePool(index, { name: e.target.value })}
+                placeholder="Name (optional)"
+                aria-label={`Pool ${index + 1} name`}
+              />
+              <input
+                className={`${inputClass} mono`}
+                value={pool.startIp}
+                onChange={(e) => updatePool(index, { startIp: e.target.value })}
+                placeholder="First IP"
+                aria-label={`Pool ${index + 1} first IP`}
+              />
+              <input
+                className={`${inputClass} mono`}
+                value={pool.endIp}
+                onChange={(e) => updatePool(index, { endIp: e.target.value })}
+                placeholder="Last IP"
+                aria-label={`Pool ${index + 1} last IP`}
+              />
+              <Button
+                variant="ghost"
+                icon
+                aria-label={`Remove pool ${index + 1}`}
+                onClick={() => update({ pools: draft.pools.filter((_, i) => i !== index) })}
+              >
+                <CloseIcon />
+              </Button>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="cols-3">
+        <FormField label="Domain name" hint="Example: lan.example.com">
+          <input
+            className={inputClass}
+            value={draft.domainName}
+            onChange={(e) => update({ domainName: e.target.value })}
+            placeholder="lan.example.com"
+          />
         </FormField>
-        <FormField label="DNS servers" hint='Comma-separated'>
-          <input className={inputClass} value={dnsServers} onChange={(e) => setDnsServers(e.target.value)} placeholder="1.1.1.1, 8.8.8.8" />
+        <FormField label="DNS servers" hint="Comma-separated">
+          <input
+            className={`${inputClass} mono`}
+            value={draft.dnsServers}
+            onChange={(e) => update({ dnsServers: e.target.value })}
+            placeholder="1.1.1.1, 8.8.8.8"
+          />
         </FormField>
-        <FormField label="NTP servers" hint='Comma-separated'>
-          <input className={inputClass} value={ntpServers} onChange={(e) => setNtpServers(e.target.value)} placeholder="0.pool.ntp.org" />
+        <FormField label="NTP servers" hint="Comma-separated">
+          <input
+            className={inputClass}
+            value={draft.ntpServers}
+            onChange={(e) => update({ ntpServers: e.target.value })}
+            placeholder="0.pool.ntp.org"
+          />
         </FormField>
       </div>
       <FormField label="Description">
-        <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <input className={inputClass} value={draft.description} onChange={(e) => update({ description: e.target.value })} />
       </FormField>
-      <div className="flex justify-end gap-3 pt-2">
-        <button type="button" onClick={onClose} className="btn btn-secondary">
-          Cancel
-        </button>
-        <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? 'Saving...' : 'Save'}
-        </button>
+      <div className="form-actions">
+        <Button onClick={onClose}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={saving} aria-busy={saving}>
+          {saving ? 'Saving...' : mode === 'edit' ? 'Save changes' : 'Add subnet'}
+        </Button>
       </div>
     </form>
   )

@@ -67,8 +67,9 @@ Body: `{ "cidr": string (es. "192.168.1.0/24"), "name": string, "gateways"?: str
 - 409: CIDR già esistente
 
 ### PUT /subnets/:id
-Body: `{ "cidr"?: string, "name"?: string, "gateways"?: string[], "includeFirstLast"?: boolean, "dhcpPools"?: DhcpPoolBody[], "vlanId"?: number, "description"?: string, "domainName"?: string, "dnsServers"?: string, "ntpServers"?: string }`
+Body: `{ "cidr"?: string, "name"?: string, "gateways"?: string[], "includeFirstLast"?: boolean, "dhcpPools"?: DhcpPoolBody[], "vlanId"?: number | null, "description"?: string, "domainName"?: string, "dnsServers"?: string, "ntpServers"?: string }`
 - `gateways` e `dhcpPools`, se forniti, sostituiscono l'elenco completo
+- `vlanId: null` rimuove la VLAN dalla subnet
 - 200: `Subnet`
 - 400: se `cidr` non valida, gateway non nella subnet, gateway fuori range utilizzabile (se `includeFirstLast` = false), gateway duplicato, o pool DHCP non valido
 - 404: non trovata
@@ -122,7 +123,8 @@ Body: `{ "ip": string, "mac"?: string, "hostname"?: string, "vendor"?: string, "
 - 409: IP già esistente
 
 ### PUT /devices/:id
-Body: `{ "ip"?: string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number, "notes"?: string }`
+Body: `{ "ip"?: string, "mac"?: string, "hostname"?: string, "vendor"?: string, "subnetId"?: number | null, "notes"?: string }`
+- `subnetId: null` rimuove il device dalla subnet
 - 200: `Device`
 - 400: IP non valido, o `subnetId` inesistente
 - 404: non trovato
@@ -167,10 +169,11 @@ Body:
 - Comportamento: per ogni device nel body, upsert per IP (crea se nuovo, aggiorna mac/hostname/vendor/lastSeen se esistente). `status` diventa `online`. Se `subnetId` non è specificato nel body del device, il server cerca la subnet il cui CIDR contiene l'IP e la associa (o `null` se nessuna).
 
 ### GET /scan/reports
-- Query: `limit` (default 50, max 200)
-- 200: `ScanReport[]`
+- Query: `limit` (default 50, max 200), `subnetId` (number, solo i report con device in quella subnet), `since` (data ISO 8601, solo i report ricevuti da quel momento in poi)
+- 200: `ScanReport[]`, dal più recente
+- 400: `subnetId` non intero o `since` non è una data
 
-`ScanReport`: `{ "id": number, "agent": string, "platform": string, "deviceCount": number, "receivedAt": string }` (platform = `""` se non fornito)
+`ScanReport`: `{ "id": number, "agent": string, "platform": string, "deviceCount": number, "receivedAt": string, "subnetIds": number[] }` (platform = `""` se non fornito). `subnetIds` sono le subnet dei device del report, con lo stesso raggruppamento dell'evento `scan.report` (i device fuori da ogni subnet non compaiono; `[]` per i report salvati prima di questo campo).
 
 ## Agents (control plane)
 
@@ -346,6 +349,35 @@ server -> agent: `{ "type": "report_ack", "received": number, "created": number,
 
 Per messaggi non validi il server risponde `{"type":"error","message":"<codice>"}` e, a seconda del codice, può chiudere la connessione. Codici: `invalid_json`, `invalid_message`, `missing_type`, `unknown_type`, `invalid_agent`, `invalid_platform`, `invalid_api_key`, `invalid_connectors`, `invalid_devices`, `invalid_device`, `invalid_id`, `invalid_ok`, `invalid_data`, `invalid_error`, `not_authenticated`.
 
+## Live events
+
+### GET /events
+Header: `Authorization: Bearer <JWT>` (il token va solo nell'header, mai nell'URL; il frontend legge lo stream con `fetch`).
+- 200: stream `text/event-stream` (server-sent events) che resta aperto
+- 401: token assente o non valido
+
+Ogni evento è un messaggio SSE con `event: <tipo>`, un `id:` progressivo per connessione e una riga `data:` con il payload JSON:
+```
+event: agent.heartbeat
+id: 3
+data: {"agent":"hq-scanner","at":"2026-10-31T10:00:00.000Z"}
+
+```
+- Keepalive: ogni 15s il server invia il commento `: keepalive`. I commenti non sono eventi. Il client considera morta una connessione senza dati per 45s (tre keepalive persi), la chiude e si ricollega.
+- Nessun replay: un client riceve solo gli eventi pubblicati mentre è connesso (`Last-Event-ID` non è supportato). Dopo una riconnessione rileggere lo stato via REST (es. `GET /agents`).
+- I client devono ignorare i tipi di evento che non conoscono.
+
+| `event` | `data` | Quando |
+|---|---|---|
+| `agent.connected` | `{ "agent": string, "platform": string }` | `hello` valido sul WebSocket, anche quando sostituisce la sessione di un agente con lo stesso nome |
+| `agent.heartbeat` | `{ "agent": string, "at": string (ISO 8601) }` | ogni `ping` di un agente autenticato |
+| `agent.disconnected` | `{ "agent": string }` | chiusura del socket di una sessione attiva, oppure watchdog (nessun ping per 90s); non emesso quando un nuovo `hello` con lo stesso nome sostituisce la sessione |
+| `scan.report` | `{ "agent": string, "source": "report" \| "connector", "receivedAt": string (ISO 8601), "reportId"?: number, "subnets": [{ "subnetId": number \| null, "deviceIds": number[] }] }` | dopo l'upsert dei device di una scansione: `POST /scan/reports` e messaggio WebSocket `report` (`source: "report"`, con `reportId` dello scan report salvato) oppure risultato di un connector con `data.devices` (`source: "connector"`, senza `reportId`). Un evento per scansione, anche con zero device. I device visti sono raggruppati per `subnetId` salvato sul device (`null` = nessuna subnet), ogni id compare una volta. Se la scansione fallisce (es. IP non valido) non viene emesso nulla |
+| `device.created` | `{ "deviceId": number, "ip": string, "subnetId": number \| null }` | device creato da una scansione (prima del relativo `scan.report`) o da un IP riservato importato da un connector (`data.reservedIps`); non emesso per `POST /devices` |
+| `device.offline` | `{ "deviceIds": number[] }` | task schedulato (ogni 60s): un solo evento con esattamente i device appena passati a `offline`; nessun evento se nessun device cambia stato |
+| `command.sent` | `{ "commandId": string, "agent": string, "connector": string }` | comando inviato a un agente connesso: `POST /agents/:name/commands`, `POST /agents/:name/connectors/:connectorId/run` e scheduler dei connector. `commandId` è l'`id` restituito dalla route e inviato all'agente; nessun evento se l'agente non è connesso |
+| `command.result` | `{ "commandId": string, "agent": string, "ok": boolean, "error"?: string (solo se `ok` = false) }` | messaggio WebSocket `result` di un agente autenticato, appena memorizzato (prima del `scan.report` e dei `device.created` dei suoi device). I dati del risultato restano su `GET /agents/:name/results` |
+
 ## Summary
 
 ### GET /summary
@@ -398,7 +430,7 @@ Per messaggi non validi il server risponde `{"type":"error","message":"<codice>"
 - I device senza subnet non compaiono nella topologia.
 
 ## Task schedulato
-Ogni 60s: device con `lastSeen` > 5 minuti fa → `status = "offline"`.
+Ogni 60s: device `online` con `lastSeen` > 5 minuti fa → `status = "offline"` (evento live `device.offline`).
 Ogni 30s: per ogni assegnazione di connector abilitata, se `nextRunAt` è scaduto invio del comando `run_connector` all'agente (`lastStatus` = `sent`; `skipped` se l'agente non è connesso) e ricalcolo di `nextRunAt`; i comandi in `sent` vengono risolti (`ok` / `error`) quando l'agente risponde.
 
 ## Seed

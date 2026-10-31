@@ -1,304 +1,255 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
-import api, { deleteDhcpPool, getErrorMessage, createDhcpPool } from '@/lib/api'
-import { timeAgo } from '@/lib/format'
-import type { DhcpPool, SubnetDetail } from '@/types'
-import { Badge } from '@/components/Badge'
-import { UtilizationBar } from '@/components/UtilizationBar'
+import api, { createDhcpPool, deleteDhcpPool, getErrorMessage, type DhcpPoolBody } from '@/lib/api'
+import { buildAddressMap, type AddressSlot } from '@/lib/addressMap'
+import { useLive } from '@/lib/live'
+import type { LiveEvent } from '@/lib/liveEvents'
+import { devicePulseClass, pulseClass, sweepClass } from '@/lib/liveState'
+import { useLoadable, type Loadable } from '@/lib/loadable'
+import { affectsSubnet, startOfDay, subnetActivity } from '@/lib/subnetLive'
+import { selectedAddress, type DeviceFilter } from '@/lib/subnetDevices'
+import { useLiveRefetch } from '@/lib/useLiveRefetch'
+import { vlanColor } from '@/lib/vlan'
+import type { Device, DhcpPool, ScanReport, SubnetDetail } from '@/types'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ActivityPanel } from '@/components/subnet/ActivityPanel'
 import { EmptyState } from '@/components/EmptyState'
-import { IpGrid } from '@/components/IpGrid'
-import { FormField, inputClass } from '@/components/FormField'
+import { AddressMapPanel } from '@/components/subnet/AddressMapPanel'
+import { DeviceEditModal, type DeviceEditBody } from '@/components/subnet/DeviceEditModal'
+import { DeviceTable } from '@/components/subnet/DeviceTable'
+import { Inspector, type AssignBody } from '@/components/subnet/Inspector'
+import { DhcpPoolPanel, NextFreePanel } from '@/components/subnet/SidePanels'
+import { SubnetHeader } from '@/components/subnet/SubnetHeader'
+
+const NEXT_FREE_LIMIT = 12
+const TODAY_REPORTS_LIMIT = 100
+const LED_BOOT_MS = 600 + 256 * 5 + 100
+
+type SubnetState = Loadable<SubnetDetail> | { status: 'not-found' }
+
+function useSubnet(id: string | undefined) {
+  const [state, setState] = useState<SubnetState>({ status: 'loading' })
+  const [booting, setBooting] = useState(false)
+
+  const fetchSubnet = useCallback(async () => (await api.get<SubnetDetail>(`/subnets/${id}`)).data, [id])
+
+  useEffect(() => {
+    let active = true
+    setState({ status: 'loading' })
+    fetchSubnet()
+      .then((subnet) => {
+        if (!active) return
+        setState({ status: 'ready', data: subnet })
+        setBooting(true)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        if (axios.isAxiosError(error) && error.response?.status === 404) setState({ status: 'not-found' })
+        else setState({ status: 'error', message: getErrorMessage(error, 'Failed to load the subnet') })
+      })
+    return () => {
+      active = false
+    }
+  }, [fetchSubnet])
+
+  useEffect(() => {
+    if (!booting) return
+    const timer = setTimeout(() => setBooting(false), LED_BOOT_MS)
+    return () => clearTimeout(timer)
+  }, [booting])
+
+  const update = useCallback((change: (subnet: SubnetDetail) => SubnetDetail) => {
+    setState((current) => (current.status === 'ready' ? { status: 'ready', data: change(current.data) } : current))
+  }, [])
+
+  const refresh = useCallback(async () => {
+    const subnet = await fetchSubnet()
+    update(() => subnet)
+  }, [fetchSubnet, update])
+
+  return { state, booting, update, refresh }
+}
+
+const NO_REPORTS: ScanReport[] = []
+
+function storesReportFor(subnetId: number) {
+  return (event: LiveEvent) =>
+    event.type === 'scan.report' && event.data.source === 'report' && event.data.subnets.some((group) => group.subnetId === subnetId)
+}
+
+function useTodayReports(subnetId: number): ScanReport[] {
+  const fetchReports = useCallback(async () => {
+    const params = { subnetId, since: startOfDay(new Date()).toISOString(), limit: TODAY_REPORTS_LIMIT }
+    return (await api.get<ScanReport[]>('/scan/reports', { params })).data
+  }, [subnetId])
+  const { state, refetch } = useLoadable(fetchReports, 'Failed to load the scan reports')
+  useLiveRefetch(storesReportFor(subnetId), refetch)
+  return state.status === 'ready' ? state.data : NO_REPORTS
+}
 
 export default function SubnetDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [subnet, setSubnet] = useState<SubnetDetail | null>(null)
-  const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState('')
+  const { state, booting, update, refresh } = useSubnet(id)
 
-  const load = useCallback(async () => {
-    try {
-      const { data } = await api.get<SubnetDetail>(`/subnets/${id}`)
-      setSubnet(data)
-      setNotFound(false)
-      setError('')
-    } catch (e) {
-      if (axios.isAxiosError(e) && e.response?.status === 404) {
-        setNotFound(true)
-      } else {
-        setError(getErrorMessage(e, 'Failed to load subnet'))
-      }
-    }
-  }, [id])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  if (error) {
-    return <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
-  }
-  if (notFound) {
-    return <EmptyState title="Subnet not found" message="It may have been deleted" />
-  }
-  if (!subnet) {
-    return <p className="text-sm text-slate-500">Loading...</p>
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <nav className="flex items-center gap-2 text-sm text-slate-500">
-          <Link to="/subnets" className="transition-colors hover:text-slate-300">
-            Subnets
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="text-slate-300">{subnet.name}</span>
-        </nav>
-        <div className="mt-2 flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">{subnet.name}</h1>
-          <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 font-mono text-xs text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
-            {subnet.cidr}
-          </span>
-          {subnet.includeFirstLast && (
-            <span className="rounded-md bg-sky-500/10 px-2 py-0.5 text-xs text-sky-400 ring-1 ring-inset ring-sky-500/20">
-              first/last usable
-            </span>
-          )}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-slate-400">
-          {subnet.vlan && (
-            <span>
-              VLAN{' '}
-              <Link to={`/vlans/${subnet.vlan.id}`} className="text-indigo-400 transition-colors hover:text-indigo-300">
-                {subnet.vlan.vlanId} - {subnet.vlan.name}
-              </Link>
-            </span>
-          )}
-          <span className="flex items-center gap-1.5">
-            {subnet.gateways.length === 0 ? (
-              '—'
-            ) : (
-              subnet.gateways.map((gateway) => (
-                <span
-                  key={gateway}
-                  className="rounded-md bg-amber-500/10 px-2 py-0.5 font-mono text-xs text-amber-400 ring-1 ring-inset ring-amber-500/20"
-                >
-                  {gateway}
-                </span>
-              ))
-            )}
-          </span>
-          {subnet.domainName && (
-            <span>
-              Domain{' '}
-              <span className="font-mono text-slate-300">{subnet.domainName}</span>
-            </span>
-          )}
-          {subnet.dnsServers && (
-            <span>
-              DNS{' '}
-              <span className="font-mono text-slate-300">{subnet.dnsServers}</span>
-            </span>
-          )}
-          {subnet.ntpServers && (
-            <span>
-              NTP{' '}
-              <span className="font-mono text-slate-300">{subnet.ntpServers}</span>
-            </span>
-          )}
-          {subnet.description && <span>{subnet.description}</span>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-5">
-          <p className="text-[13px] font-medium text-slate-400">Devices</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-slate-50">{subnet.devices.length}</p>
-        </div>
-        <div className="card p-5">
-          <p className="text-[13px] font-medium text-slate-400">Utilization</p>
-          <div className="mt-3">
-            <UtilizationBar used={subnet.usedHosts} total={subnet.totalHosts} />
-          </div>
-        </div>
-        <div className="card p-5">
-          <p className="text-[13px] font-medium text-slate-400">Created</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-slate-50">
-            {new Date(subnet.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-
-      <div className="card p-5">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">IP map</h2>
-        <IpGrid
-          cidr={subnet.cidr}
-          includeFirstLast={subnet.includeFirstLast}
-          gateways={subnet.gateways}
-          dhcpPools={subnet.dhcpPools}
-          devices={subnet.devices}
-        />
-      </div>
-
-      <DhcpPoolsSection subnet={subnet} onRefresh={load} />
-
-      <div className="card overflow-hidden">
-        <h2 className="border-b border-slate-800 px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Devices
-        </h2>
-        {subnet.devices.length === 0 ? (
-          <EmptyState title="No devices" message="This subnet has no devices yet" />
-        ) : (
-          <table className="w-full text-left">
-            <thead className="border-b border-slate-800">
-              <tr>
-                <th className="th">IP</th>
-                <th className="th">Hostname</th>
-                <th className="th">MAC</th>
-                <th className="th">Status</th>
-                <th className="th">Last seen</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {subnet.devices.map((device) => (
-                <tr key={device.id} className="transition-colors hover:bg-slate-800/40">
-                  <td className="td font-mono text-indigo-400">{device.ip}</td>
-                  <td className="td font-medium text-slate-200">{device.hostname || '—'}</td>
-                  <td className="td font-mono">{device.mac || '—'}</td>
-                  <td className="td">
-                    <Badge status={device.status} />
-                  </td>
-                  <td className="td">{timeAgo(device.lastSeen)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  )
+  if (state.status === 'loading') return <p className="text-fg-3">Loading subnet...</p>
+  if (state.status === 'not-found') return <EmptyState title="Subnet not found" message="It may have been deleted." />
+  if (state.status === 'error') return <p className="alert">{state.message}</p>
+  return <SubnetView subnet={state.data} booting={booting} update={update} refresh={refresh} />
 }
 
-function DhcpPoolsSection({ subnet, onRefresh }: { subnet: SubnetDetail; onRefresh: () => void }) {
-  const [name, setName] = useState('')
-  const [startIp, setStartIp] = useState('')
-  const [endIp, setEndIp] = useState('')
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const pools = subnet.dhcpPools
+interface SubnetViewProps {
+  subnet: SubnetDetail
+  booting: boolean
+  update: (change: (subnet: SubnetDetail) => SubnetDetail) => void
+  refresh: () => Promise<void>
+}
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+function SubnetView({ subnet, booting, update, refresh }: SubnetViewProps) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [hover, setHover] = useState<number | null>(null)
+  const [blockChoice, setBlockChoice] = useState<{ ip: string; index: number } | null>(null)
+  const [filter, setFilter] = useState<DeviceFilter>('all')
+  const [editing, setEditing] = useState<Device | null>(null)
+  const [toDelete, setToDelete] = useState<Device | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+  const live = useLive()
+  useLiveRefetch(
+    (event) => affectsSubnet(event, subnet.id, subnet.devices.map((candidate) => candidate.id)),
+    () => void refresh().catch(() => undefined),
+  )
+
+  const map = useMemo(() => buildAddressMap(subnet, subnet.devices), [subnet])
+  const cable = vlanColor(subnet.vlan?.vlanId)
+  const ip = selectedAddress(searchParams.get('ip'), map, subnet.devices)
+  const slot = map.slot(ip)
+  const device = slot?.device ?? subnet.devices.find((candidate) => candidate.ip === ip) ?? null
+  const blockIndex = blockChoice?.ip === ip ? blockChoice.index : (map.blockOf(ip)?.index ?? 0)
+  const [bootBlock, setBootBlock] = useState<number | null>(blockIndex)
+  if (bootBlock !== null && bootBlock !== blockIndex) setBootBlock(null)
+  const nextFree = useMemo(() => map.nextFree(NEXT_FREE_LIMIT), [map])
+  const sweep = live.sweeps[subnet.id]
+  const devicePulse = useCallback((deviceId: number) => devicePulseClass(live, deviceId), [live])
+  const reports = useTodayReports(subnet.id)
+  const activity = useMemo(
+    () => subnetActivity({ subnetId: subnet.id, prefix: map.prefix, devices: subnet.devices, scans: live.scans, reports, now: new Date() }),
+    [subnet, map.prefix, live.scans, reports],
+  )
+
+  const select = useCallback(
+    (address: string) => {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.set('ip', address)
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
+  const selectSlot = useCallback((target: AddressSlot<Device>) => select(target.ip), [select])
+  const hoverSlot = useCallback((target: AddressSlot<Device> | null) => setHover(target ? target.value : null), [])
+
+  async function assign(body: AssignBody) {
+    const { data } = await api.post<Device>('/devices', {
+      ip,
+      hostname: body.hostname || undefined,
+      mac: body.mac || undefined,
+      subnetId: subnet.id,
+    })
+    update((current) => ({ ...current, devices: [...current.devices, data] }))
+  }
+
+  async function saveDevice(target: Device, body: DeviceEditBody) {
+    const { data } = await api.put<Device>(`/devices/${target.id}`, body)
+    update((current) => ({ ...current, devices: current.devices.map((candidate) => (candidate.id === data.id ? data : candidate)) }))
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return
+    setDeleting(true)
     setError('')
     try {
-      await createDhcpPool(subnet.id, {
-        name: name.trim() || undefined,
-        startIp: startIp.trim(),
-        endIp: endIp.trim(),
-      })
-      setName('')
-      setStartIp('')
-      setEndIp('')
-      await onRefresh()
+      await api.delete(`/devices/${toDelete.id}`)
+      update((current) => ({ ...current, devices: current.devices.filter((candidate) => candidate.id !== toDelete.id) }))
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to add pool'))
+      setError(getErrorMessage(err, 'Failed to delete the device'))
     } finally {
-      setSaving(false)
+      setDeleting(false)
+      setToDelete(null)
     }
   }
 
-  async function handleDelete(pool: DhcpPool) {
-    setError('')
-    try {
-      await deleteDhcpPool(pool.id)
-      await onRefresh()
-    } catch (err) {
-      setError(getErrorMessage(err, 'Failed to delete pool'))
-    }
+  async function addPool(body: DhcpPoolBody) {
+    await createDhcpPool(subnet.id, body)
+    await refresh()
+  }
+
+  async function removePool(pool: DhcpPool) {
+    await deleteDhcpPool(pool.id)
+    await refresh()
   }
 
   return (
-    <div className="card overflow-hidden">
-      <h2 className="border-b border-slate-800 px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-        DHCP pools
-      </h2>
-      {pools.length === 0 ? (
-        <EmptyState title="No DHCP pools" message="This subnet has no DHCP pools yet" />
-      ) : (
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-800">
-            <tr>
-              <th className="th">Name</th>
-              <th className="th">Range</th>
-              <th className="th text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {pools.map((pool) => (
-              <tr key={pool.id} className="transition-colors hover:bg-slate-800/40">
-                <td className="td font-medium text-slate-200">{pool.name || '—'}</td>
-                <td className="td font-mono text-sky-400">
-                  {pool.startIp} - {pool.endIp}
-                </td>
-                <td className="td whitespace-nowrap text-right">
-                  <button
-                    onClick={() => void handleDelete(pool)}
-                    className="text-red-400 transition-colors hover:text-red-300"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <div className="border-t border-slate-800 px-5 py-4">
-        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-          <div className="w-40">
-            <FormField label="Name">
-              <input
-                className={inputClass}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Optional"
-              />
-            </FormField>
-          </div>
-          <div className="w-40">
-            <FormField label="Start IP">
-              <input
-                className={inputClass}
-                value={startIp}
-                onChange={(e) => setStartIp(e.target.value)}
-                placeholder="192.168.1.100"
-                required
-              />
-            </FormField>
-          </div>
-          <div className="w-40">
-            <FormField label="End IP">
-              <input
-                className={inputClass}
-                value={endIp}
-                onChange={(e) => setEndIp(e.target.value)}
-                placeholder="192.168.1.200"
-                required
-              />
-            </FormField>
-          </div>
-          <button type="submit" disabled={saving} className="btn btn-primary">
-            {saving ? 'Adding...' : 'Add pool'}
-          </button>
-        </form>
-        {error && (
-          <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
-          </p>
-        )}
+    <div className="subnet-page">
+      {error && <p className="alert">{error}</p>}
+      <SubnetHeader subnet={subnet} prefix={map.prefix} counters={map.counters} cable={cable} />
+      <div className="workrow">
+        <AddressMapPanel
+          map={map}
+          blockIndex={blockIndex}
+          cable={cable}
+          selectedIp={ip}
+          hover={hover}
+          booting={booting && bootBlock === blockIndex}
+          passClass={sweepClass(live, subnet.id)}
+          fiberClass={pulseClass(sweep, live.settled, 'rx')}
+          devicePulse={devicePulse}
+          onBlockChange={(index) => setBlockChoice({ ip, index })}
+          onSelect={selectSlot}
+          onHover={hoverSlot}
+        />
+        <div className="aside">
+          <Inspector
+            ip={ip}
+            slot={slot}
+            device={device}
+            cidr={subnet.cidr}
+            includeFirstLast={subnet.includeFirstLast}
+            onAssign={assign}
+            onEdit={setEditing}
+            onDelete={setToDelete}
+          />
+          <NextFreePanel addresses={nextFree} free={map.counters.free} prefix={map.prefix} onPick={select} />
+          <DhcpPoolPanel pools={map.pools} cable={cable} onAdd={addPool} onDelete={removePool} />
+        </div>
       </div>
+      <div className="bottomrow">
+        <DeviceTable
+          devices={subnet.devices}
+          map={map}
+          prefix={map.prefix}
+          filter={filter}
+          selectedIp={ip}
+          onFilter={setFilter}
+          onSelect={select}
+        />
+        <ActivityPanel entries={activity} onSelect={select} />
+      </div>
+      {editing && <DeviceEditModal device={editing} onSave={(body) => saveDevice(editing, body)} onClose={() => setEditing(null)} />}
+      {toDelete && (
+        <ConfirmDialog
+          title="Delete device"
+          message={`Delete ${toDelete.hostname.trim() || 'the device'} on ${toDelete.ip}? The address becomes free again unless it is reserved.`}
+          confirmLabel="Delete device"
+          loading={deleting}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setToDelete(null)}
+        />
+      )}
     </div>
   )
 }

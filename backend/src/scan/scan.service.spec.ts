@@ -4,9 +4,11 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { ApiKey } from '../entities/api-key.entity';
 import { Device } from '../entities/device.entity';
+import { EventsService } from '../events/events.service';
+import { LiveEvent } from '../events/live-event';
 import { ScanReport } from '../entities/scan-report.entity';
 import { Subnet } from '../entities/subnet.entity';
 import { hashApiKey } from '../lib/api-key';
@@ -36,7 +38,8 @@ describe('ScanService', () => {
   };
   let subnetRepo: { find: jest.Mock };
   let apiKeyRepo: { findOne: jest.Mock; save: jest.Mock };
-  let reportRepo: { create: jest.Mock; save: jest.Mock };
+  let reportRepo: { create: jest.Mock; save: jest.Mock; find?: jest.Mock };
+  let events: LiveEvent[];
 
   const validKey = 'ipam-0123456789abcdef0123456789abcdef';
   const keyRecord = {
@@ -49,9 +52,13 @@ describe('ScanService', () => {
   };
 
   beforeEach(async () => {
+    let nextId = 100;
     deviceRepo = {
       findOne: jest.fn(),
-      save: jest.fn(async (device: Device) => device),
+      save: jest.fn(async (device: Device) => ({
+        ...device,
+        id: device.id ?? nextId++,
+      })),
       create: jest.fn((options: Partial<Device>) => options as Device),
     };
     subnetRepo = {
@@ -82,10 +89,16 @@ describe('ScanService', () => {
           provide: getRepositoryToken(ScanReport),
           useValue: reportRepo,
         },
+        EventsService,
       ],
     }).compile();
 
     service = moduleRef.get(ScanService);
+    events = [];
+    moduleRef
+      .get(EventsService)
+      .stream()
+      .subscribe((event) => events.push(event));
   });
 
   it('rejects a missing api key', async () => {
@@ -214,5 +227,208 @@ describe('ScanService', () => {
     expect(find).toHaveBeenCalledWith(
       expect.objectContaining({ take: 50 }),
     );
+  });
+
+  it('stores on the report the subnets its devices were grouped under, without the devices outside every subnet', async () => {
+    deviceRepo.findOne.mockImplementation(
+      async ({ where }: { where: { ip: string } }) =>
+        where.ip === '172.31.0.9'
+          ? makeDevice({ id: 8, ip: '172.31.0.9', subnetId: null })
+          : null,
+    );
+
+    await service.receive(validKey, {
+      agent: 'agent-1',
+      devices: [
+        { ip: '10.0.0.5' },
+        { ip: '192.168.1.50' },
+        { ip: '10.0.0.6' },
+        { ip: '172.31.0.9' },
+      ],
+    });
+
+    expect(reportRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceCount: 4, subnetIds: [2, 1] }),
+    );
+  });
+
+  it('stores no subnets on a report without devices', async () => {
+    await service.receive(validKey, { agent: 'agent-1', devices: [] });
+
+    expect(reportRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ subnetIds: [] }),
+    );
+  });
+
+  describe('listing reports of one subnet', () => {
+    const report = (id: number, subnetIds: number[]) =>
+      ({ id, agent: 'agent-1', platform: '', deviceCount: 1, receivedAt: new Date(), subnetIds }) as ScanReport;
+
+    it('keeps only the reports that reached the subnet, up to the limit', async () => {
+      const find = jest.fn(async () => [
+        report(5, [1, 2]),
+        report(4, [2]),
+        report(3, [1]),
+        report(2, []),
+        report(1, [1]),
+      ]);
+      reportRepo.find = find;
+
+      const reports = await service.listReports(2, { subnetId: 1 });
+
+      expect(reports.map((entry) => entry.id)).toEqual([5, 3]);
+      expect(find).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.anything() }),
+      );
+    });
+
+    it('asks only for the reports received since a given time', async () => {
+      const find = jest.fn(async () => []);
+      reportRepo.find = find;
+      const since = new Date('2026-10-31T00:00:00.000Z');
+
+      await service.listReports(undefined, { since });
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { receivedAt: MoreThanOrEqual(since) },
+          take: 50,
+        }),
+      );
+    });
+  });
+
+  describe('live events', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({
+        now: new Date('2026-10-31T10:00:00.000Z'),
+        doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'],
+      });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('emits device.created for a new ip and one scan.report grouping both devices by subnet', async () => {
+      deviceRepo.findOne.mockImplementation(
+        async ({ where }: { where: { ip: string } }) =>
+          where.ip === '192.168.1.10'
+            ? makeDevice({ id: 7, ip: '192.168.1.10', subnetId: 1 })
+            : null,
+      );
+
+      await service.receive(validKey, {
+        agent: 'agent-1',
+        devices: [{ ip: '192.168.1.10' }, { ip: '192.168.1.50' }],
+      });
+
+      expect(events).toEqual([
+        {
+          type: 'device.created',
+          data: { deviceId: 100, ip: '192.168.1.50', subnetId: 1 },
+        },
+        {
+          type: 'scan.report',
+          data: {
+            agent: 'agent-1',
+            source: 'report',
+            receivedAt: '2026-10-31T10:00:00.000Z',
+            reportId: 99,
+            subnets: [{ subnetId: 1, deviceIds: [7, 100] }],
+          },
+        },
+      ]);
+    });
+
+    it('groups devices outside every subnet under a null subnet', async () => {
+      deviceRepo.findOne.mockResolvedValue(null);
+
+      await service.receive(validKey, {
+        agent: 'agent-1',
+        devices: [{ ip: '10.0.0.5' }, { ip: '172.31.0.5' }],
+      });
+
+      const report = events.find((event) => event.type === 'scan.report');
+      expect(report?.data).toMatchObject({
+        subnets: [
+          { subnetId: 2, deviceIds: [100] },
+          { subnetId: null, deviceIds: [101] },
+        ],
+      });
+      expect(events.filter((event) => event.type === 'device.created')).toEqual([
+        {
+          type: 'device.created',
+          data: { deviceId: 100, ip: '10.0.0.5', subnetId: 2 },
+        },
+        {
+          type: 'device.created',
+          data: { deviceId: 101, ip: '172.31.0.5', subnetId: null },
+        },
+      ]);
+    });
+
+    it('announces connector results as a connector scan without a report id', async () => {
+      deviceRepo.findOne.mockResolvedValue(
+        makeDevice({ id: 7, ip: '192.168.1.10', subnetId: 1 }),
+      );
+
+      const result = await service.receiveConnectorResult('probe', [
+        { ip: '192.168.1.10' },
+      ]);
+
+      expect(result).toMatchObject({ created: 0, updated: 1 });
+      expect(reportRepo.save).not.toHaveBeenCalled();
+      expect(events).toEqual([
+        {
+          type: 'scan.report',
+          data: {
+            agent: 'probe',
+            source: 'connector',
+            receivedAt: '2026-10-31T10:00:00.000Z',
+            subnets: [{ subnetId: 1, deviceIds: [7] }],
+          },
+        },
+      ]);
+    });
+
+    it('groups a known device by its stored subnet and lists a repeated ip once', async () => {
+      deviceRepo.findOne.mockResolvedValue(
+        makeDevice({ id: 7, ip: '192.168.1.10', subnetId: null }),
+      );
+
+      await service.receive(validKey, {
+        agent: 'agent-1',
+        devices: [{ ip: '192.168.1.10' }, { ip: '192.168.1.10' }],
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0].data).toMatchObject({
+        subnets: [{ subnetId: null, deviceIds: [7] }],
+      });
+    });
+
+    it('announces an empty report with no subnets', async () => {
+      await service.receive(validKey, { agent: 'agent-1', devices: [] });
+
+      expect(events).toEqual([
+        {
+          type: 'scan.report',
+          data: expect.objectContaining({ reportId: 99, subnets: [] }),
+        },
+      ]);
+    });
+
+    it('emits nothing when a report is rejected for an invalid ip', async () => {
+      deviceRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.receive(validKey, {
+          agent: 'agent-1',
+          devices: [{ ip: '192.168.1.50' }, { ip: '999.1.1.1' }],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(events).toEqual([]);
+    });
   });
 });

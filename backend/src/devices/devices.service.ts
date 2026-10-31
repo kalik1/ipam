@@ -51,7 +51,7 @@ export class DevicesService {
     }
     const subnetId =
       dto.subnetId !== undefined
-        ? await this.resolveSubnetId(dto.subnetId)
+        ? (await this.findSubnet(dto.subnetId)).id
         : await this.autoAssignSubnetId(dto.ip);
     const device = this.deviceRepo.create({
       ip: dto.ip,
@@ -84,10 +84,9 @@ export class DevicesService {
     if (dto.vendor !== undefined) device.vendor = dto.vendor;
     if (dto.notes !== undefined) device.notes = dto.notes;
     if (dto.subnetId !== undefined) {
-      device.subnetId =
-        dto.subnetId === null
-          ? null
-          : await this.resolveSubnetId(dto.subnetId);
+      device.subnet =
+        dto.subnetId === null ? null : await this.findSubnet(dto.subnetId);
+      device.subnetId = device.subnet?.id ?? null;
     }
     const saved = await this.deviceRepo.save(device);
     return this.findById(saved.id);
@@ -112,10 +111,10 @@ export class DevicesService {
     return device;
   }
 
-  private async resolveSubnetId(subnetId: number): Promise<number> {
-    const subnet = await this.subnetRepo.findOne({ where: { id: subnetId } });
+  private async findSubnet(id: number): Promise<Subnet> {
+    const subnet = await this.subnetRepo.findOne({ where: { id } });
     if (!subnet) throw new BadRequestException('Subnet not found');
-    return subnet.id;
+    return subnet;
   }
 
   private async autoAssignSubnetId(ip: string): Promise<number | null> {

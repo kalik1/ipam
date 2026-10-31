@@ -11,11 +11,16 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: Number(process.env.IPAM_WEB_PORT ?? 5173),
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
+      '/api/': {
+        target: process.env.IPAM_API_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (_error, _request, response) => {
+            if ('req' in response && response.headersSent && !response.writableEnded) response.end()
+          })
+        },
       },
     },
   },

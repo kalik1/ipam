@@ -14,10 +14,29 @@ export function timeAgo(iso: string): string {
   return `${Math.floor(months / 12)}y ago`
 }
 
-export type UtilizationLevel = 'ok' | 'warn' | 'danger'
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`
+}
 
-export function utilizationColor(percent: number): UtilizationLevel {
-  if (percent > 90) return 'danger'
-  if (percent > 75) return 'warn'
-  return 'ok'
+export function formatDay(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'unknown'
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+export function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'unknown'
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+export function formatClock(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '--:--:--'
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }

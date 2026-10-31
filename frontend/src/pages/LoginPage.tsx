@@ -1,16 +1,23 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/lib/auth'
 import { getErrorMessage } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useTheme } from '@/lib/useTheme'
+import { Button } from '@/components/Button'
 import { FormField, inputClass } from '@/components/FormField'
+import { Panel } from '@/components/Panel'
+import { Tooltip } from '@/components/Tooltip'
+import { BrandMark, ThemeIcon } from '@/components/icons'
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const themeLabel = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -27,25 +34,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 p-4">
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
-      <div className="relative w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-black/50 backdrop-blur animate-scale-in">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-950/60">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" className="h-6 w-6" aria-hidden="true">
-              <circle cx="12" cy="5" r="2.2" />
-              <circle cx="5" cy="19" r="2.2" />
-              <circle cx="19" cy="19" r="2.2" />
-              <path d="M12 7.2 6.5 17 M12 7.2l5.5 9.8 M7.2 19h9.6" />
-            </svg>
+    <main className="login">
+      <Tooltip tip={themeLabel} describe={false}>
+        <Button icon className="login-theme" aria-label={themeLabel} onClick={toggle}>
+          <ThemeIcon />
+        </Button>
+      </Tooltip>
+      <Panel hud className="login-card" aria-labelledby="login-title">
+        <span className="cscrew tl" aria-hidden="true" />
+        <span className="cscrew tr" aria-hidden="true" />
+        <span className="cscrew bl" aria-hidden="true" />
+        <span className="cscrew br" aria-hidden="true" />
+        <div className="login-head brushed">
+          <BrandMark ledClassName="brand-led" />
+          <div>
+            <b>IPAM</b>
+            <span>Network address manager</span>
           </div>
-          <h1 className="mt-4 text-xl font-semibold tracking-tight text-slate-100">IPAM</h1>
-          <p className="mt-1 text-sm text-slate-500">Sign in to your account</p>
+          <span className="vent" aria-hidden="true" />
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="login-body">
+          <h1 id="login-title" className="heading">
+            Sign in
+          </h1>
           {error && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
+            <p className="alert" role="alert">
+              {error}
+            </p>
           )}
           <FormField label="Username">
             <input
@@ -67,11 +82,11 @@ export default function LoginPage() {
               required
             />
           </FormField>
-          <button type="submit" disabled={loading} className="btn btn-primary w-full py-2.5">
+          <Button type="submit" variant="primary" disabled={loading} aria-busy={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
-          </button>
+          </Button>
         </form>
-      </div>
-    </div>
+      </Panel>
+    </main>
   )
 }

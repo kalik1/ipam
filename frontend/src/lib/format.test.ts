@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { timeAgo, utilizationColor } from './format'
+import { formatClock, formatDay, formatTimestamp, plural, timeAgo } from './format'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -47,20 +47,50 @@ describe('timeAgo', () => {
   })
 })
 
-describe('utilizationColor', () => {
-  it('is ok at or below 75%', () => {
-    expect(utilizationColor(0)).toBe('ok')
-    expect(utilizationColor(50)).toBe('ok')
-    expect(utilizationColor(75)).toBe('ok')
+describe('formatDay', () => {
+  it('writes a date as month, day and year', () => {
+    expect(formatDay('2026-03-02T10:00:00Z')).toBe('Mar 2, 2026')
   })
 
-  it('is warn above 75% and at most 90%', () => {
-    expect(utilizationColor(76)).toBe('warn')
-    expect(utilizationColor(90)).toBe('warn')
+  it('returns "unknown" for invalid dates', () => {
+    expect(formatDay('not-a-date')).toBe('unknown')
+  })
+})
+
+describe('formatTimestamp', () => {
+  it('writes local date and time with zero padding, sortable as text', () => {
+    expect(formatTimestamp(new Date(2026, 2, 2, 9, 5, 7).toISOString())).toBe('2026-03-02 09:05:07')
   })
 
-  it('is danger above 90%', () => {
-    expect(utilizationColor(91)).toBe('danger')
-    expect(utilizationColor(100)).toBe('danger')
+  it('returns "unknown" for invalid dates', () => {
+    expect(formatTimestamp('not-a-date')).toBe('unknown')
+  })
+})
+
+describe('formatClock', () => {
+  it('shows the local time of day with seconds, on a 24 hour clock', () => {
+    expect(formatClock(new Date(2026, 9, 31, 7, 4, 9).toISOString())).toBe('07:04:09')
+    expect(formatClock(new Date(2026, 9, 31, 23, 59, 30).toISOString())).toBe('23:59:30')
+  })
+
+  it('returns a placeholder for an invalid date', () => {
+    expect(formatClock('not a date')).toBe('--:--:--')
+  })
+})
+
+describe('plural', () => {
+  it('uses the singular only for exactly one', () => {
+    expect(plural(1, 'device')).toBe('1 device')
+    expect(plural(0, 'device')).toBe('0 devices')
+    expect(plural(2, 'VLAN')).toBe('2 VLANs')
+  })
+
+  it('takes an irregular plural form', () => {
+    expect(plural(1, 'address stays', 'addresses stay')).toBe('1 address stays')
+    expect(plural(3, 'address stays', 'addresses stay')).toBe('3 addresses stay')
+  })
+
+  it('groups the digits of large counts', () => {
+    expect(plural(65534, 'free address', 'free addresses')).toBe('65,534 free addresses')
   })
 })

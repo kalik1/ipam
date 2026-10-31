@@ -7,6 +7,8 @@ import { DhcpPool } from '../entities/dhcp-pool.entity';
 import { Gateway } from '../entities/gateway.entity';
 import { Subnet } from '../entities/subnet.entity';
 import { Vlan } from '../entities/vlan.entity';
+import { EventsService } from '../events/events.service';
+import { deviceCreatedEvent } from '../events/live-event';
 
 export interface ImportVlan {
   vlanId: number;
@@ -61,6 +63,7 @@ export class NetworkImportService {
     @InjectRepository(Gateway) private readonly gatewayRepo: Repository<Gateway>,
     @InjectRepository(Device) private readonly deviceRepo: Repository<Device>,
     @InjectRepository(DhcpPool) private readonly poolRepo: Repository<DhcpPool>,
+    private readonly events: EventsService,
   ) {}
 
   async importNetwork(
@@ -200,7 +203,7 @@ export class NetworkImportService {
         }
         if (changed) await this.deviceRepo.save(existing);
       } else {
-        await this.deviceRepo.save(
+        const created = await this.deviceRepo.save(
           this.deviceRepo.create({
             ip: entry.ip,
             mac: entry.mac ?? '',
@@ -213,6 +216,7 @@ export class NetworkImportService {
           }),
         );
         result.reservedDevicesAdded += 1;
+        this.events.publish(deviceCreatedEvent(created));
       }
     }
     for (const entry of dhcpRanges) {
