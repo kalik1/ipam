@@ -69,7 +69,7 @@ const RackUnit = memo(function RackUnit({ row, sweep }: { row: RackRow; sweep: s
           <b>{reserved}</b>
           <i>{poolText(row.pools)}</i>
         </span>
-        <span className={cx(row.low && 'warn')}>
+        <span className={row.low ? 'warn' : undefined}>
           <span>Free</span>
           <b>{free}</b>
           <i>{freeText(row)}</i>

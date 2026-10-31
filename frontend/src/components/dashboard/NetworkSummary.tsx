@@ -1,4 +1,3 @@
-import { cx } from '@/lib/cx'
 import { LOW_FREE_RATIO, type Rack } from '@/lib/rack'
 import { AllocationSegments } from '@/components/addressMap/AllocationBar'
 
@@ -52,7 +51,7 @@ export function NetworkSummary({ rack, agents }: { rack: Rack; agents: number })
             <small>{freePercent}% of usable</small>
           </dd>
         </div>
-        <div className={cx(low > 0 && 'warn')}>
+        <div className={low > 0 ? 'warn' : undefined}>
           <dt>Subnets low on free</dt>
           <dd>
             {low}
