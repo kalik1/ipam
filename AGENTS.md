@@ -25,6 +25,7 @@ cd agent && npm install && npm run scan -- --api-key ipam-... --agent-name myage
 - The backend seeds automatically on first start (empty `backend/data/ipam.sqlite`): user `admin`/`admin`, demo VLANs/subnets/devices, and one API key named `seed` whose full value is printed once to the console.
 - For a fresh re-seed: stop the backend and delete `backend/data/ipam.sqlite`.
 - Node 24 is required (the agent relies on native TS type stripping: `node src/agent.ts`).
+- To run several checkouts side by side: the backend honors `PORT`; the frontend dev server reads `IPAM_WEB_PORT` (default 5173) and `IPAM_API_TARGET` (proxy target, default `http://localhost:3000`).
 
 ## Build and test commands
 
