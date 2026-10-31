@@ -44,13 +44,16 @@ Run build and tests in every subproject you touch. All must pass before you are 
 - No emojis in code or docs.
 - Small, focused functions; follow the existing module layout (NestJS modules: controller + service + DTOs with class-validator).
 - Backend date columns use `type: 'datetime'` (portable across sqlite and postgres; better-sqlite3 rejects `timestamp`).
-- Frontend: dark theme (slate-950 background, slate-900 cards, indigo accent); new pages/components follow the patterns in `frontend/src/components/` and `frontend/src/pages/`.
-- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline) or lasts only while a real state is in progress (a command still `sent`). Everything else is static: hover and focus change color instantly, no transitions. See `docs/adr/0001-animations-driven-by-real-events.md`.
+- Frontend design system (network hardware look, dark and light themes): palette tokens are CSS variables on `<html class="dark|light">` in `frontend/src/index.css`, exposed to Tailwind as `ground`, `rail`, `panel`, `panel-hi`, `well`, `sunk`, `line`, `line-soft`, `fg`, `fg-2`, `fg-3`, `accent`, `accent-ink`, `led`, `led-off`, `pool`, `gw`, `warn`, `danger` (`bg-panel text-fg-2 border-line`). Style with these tokens; the `slate-*`/`indigo-*`/`red-*`/`emerald-*`/`amber-*`/`sky-*` utilities are remapped to tokens only as a temporary bridge for pages not yet rebuilt, delete the bridge once no page uses them.
+- Frontend type: Archivo Variable for UI, Martian Mono Variable (`.mono`) for IPs, MACs and numbers, bundled from `@fontsource-variable/*/wdth.css` (no font CDN); condense with `font-stretch`, base 13px, sentence case.
+- Frontend building blocks: reuse the base components in `frontend/src/components/` (`Button`, `Panel`/`PanelHeader`, `Selector`, `Table`, `FormField`, `Modal`, `ConfirmDialog`, `EmptyState`, `Badge`, `StatusLed`, `VlanChip`/`Cable`); page-level buttons go in the top bar through `<PageActions>`. Component CSS lives in `frontend/src/styles/`, one file per feature imported from `index.css`.
+- VLAN cable colors come from `vlanColor(tag)` and `vlanLabel(vlan)` in `frontend/src/lib/vlan.ts`, keyed by the 802.1Q tag (`Vlan.vlanId`); `Subnet.vlanId` is the VLAN row id, so pass `subnet.vlan?.vlanId`.
+- Frontend motion: every animation is triggered by a real backend event (scan report, command sent or result, agent ping, device created or offline) or lasts only while a real state is in progress (a command still `sent`). The shell and base components are static: hover and focus change color instantly, with a visible focus outline. See `docs/adr/0001-animations-driven-by-real-events.md`.
 
 ## Testing instructions
 
 - Backend unit tests live next to the code (`*.spec.ts`): cidr lib, api-key lib, scan upsert. Add tests for the code you change, even if not asked.
-- Frontend tests: `frontend/src/lib/format.test.ts` (vitest). Test pure helpers; UI is verified by build + manual check.
+- Frontend tests: `frontend/src/lib/*.test.ts` (vitest, node environment, `.test.ts` only). Keep logic in pure `.ts` modules and test it there; UI is verified by build + manual check.
 - The cidr lib (`backend/src/lib/cidr.ts`) is dependency-free and pure — test edge cases: /24, /30, /31, /32, invalid inputs.
 - Integration check (manual, when touching auth/scan/proxy): start backend + frontend, then verify through the Vite proxy (`http://localhost:5173/api/v1/...`): login returns a token, `GET /summary` with the token returns seeded data, `POST /scan/reports` with a valid `X-API-Key` upserts devices, invalid key returns 401.
 

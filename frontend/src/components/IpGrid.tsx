@@ -168,7 +168,7 @@ function CellTooltip({ hover }: { hover: Hover }) {
         transform: `translateX(-50%)${showBelow ? '' : ' translateY(-100%)'}`,
       }}
     >
-      <div className="w-64 animate-scale-in rounded-lg border border-slate-700/70 bg-slate-900/95 p-3 text-xs shadow-lg shadow-black/40 ring-1 ring-black/20 backdrop-blur-sm">
+      <div className="w-64 rounded-lg border border-slate-700/70 bg-slate-900/95 p-3 text-xs shadow-lg shadow-black/40 ring-1 ring-black/20 backdrop-blur-sm">
         {device ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between gap-3">

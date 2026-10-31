@@ -1,9 +1,16 @@
+import { cx } from '@/lib/cx'
 import { utilizationColor } from '@/lib/format'
 
 const BAR_COLORS = {
-  ok: 'bg-indigo-500',
-  warn: 'bg-amber-500',
-  danger: 'bg-red-500',
+  ok: 'var(--accent)',
+  warn: 'var(--warn)',
+  danger: 'var(--danger)',
+} as const
+
+const TEXT_COLORS = {
+  ok: 'text-fg',
+  warn: 'text-warn',
+  danger: 'text-danger',
 } as const
 
 export function UtilizationBar({ used, total }: { used: number; total: number }) {
@@ -11,18 +18,13 @@ export function UtilizationBar({ used, total }: { used: number; total: number })
   const level = utilizationColor(percent)
   return (
     <div className="flex items-center gap-3">
-      <div className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-800">
-        <div
-          className={`h-full animate-bar-fill rounded-full ${BAR_COLORS[level]} transition-[width] duration-500 ease-out`}
-          style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-        />
-      </div>
-      <span className="whitespace-nowrap text-xs tabular-nums text-slate-400">
+      <span className="minibar w-32">
+        <i style={{ width: `${Math.min(100, Math.max(0, percent))}%`, background: BAR_COLORS[level] }} />
+      </span>
+      <span className="mono whitespace-nowrap text-fg-2">
         {used}/{total}
       </span>
-      <span className={`w-10 text-right text-xs font-medium tabular-nums ${level === 'danger' ? 'text-red-400' : level === 'warn' ? 'text-amber-400' : 'text-slate-300'}`}>
-        {percent}%
-      </span>
+      <span className={cx('mono w-12 text-right', TEXT_COLORS[level])}>{percent}%</span>
     </div>
   )
 }
