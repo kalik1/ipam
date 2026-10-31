@@ -74,3 +74,17 @@ Run build and tests in every subproject you touch. All must pass before you are 
 - Devices not seen for 5 minutes are marked `offline` by the scheduler (`@Cron` every 60s).
 - `API.md` and this file must stay in sync when routes or behaviors change.
 - Git repo: https://github.com/kalik1/ipam (branch `main`). Commit or push only when asked.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `kalik1/ipam`, managed with the `gh` CLI. Wayfinder labels: `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
